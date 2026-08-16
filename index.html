@@ -204,13 +204,18 @@ canvas.chart { width: 100%; height: auto; display: block; border-radius: 8px; }
 }
 
 /* 2D demo */
-.img2d { display: grid; grid-template-columns: auto auto 1fr; gap: 18px; align-items: start; }
-@media (max-width: 780px) { .img2d { grid-template-columns: 1fr 1fr; } .img2d .inspect { grid-column: 1 / -1; } }
+.img2d { display: grid; grid-template-columns: auto auto auto 1fr; gap: 18px; align-items: start; }
+@media (max-width: 900px) {
+  .img2d { grid-template-columns: auto auto; }
+  .img2d .inspect { grid-column: 1 / -1; }
+}
 .img2d canvas { image-rendering: pixelated; border: 1px solid var(--line); border-radius: 8px; width: 240px; max-width: 100%; height: auto; display: block; cursor: crosshair; }
 .img2d .cap { font-size: .8rem; color: var(--muted); text-align: center; margin-top: 6px; }
-.kgrid { display: grid; grid-template-columns: repeat(3, 58px); gap: 5px; margin: 10px 0; }
+.img2d .kcol { align-self: center; text-align: center; }
+.img2d .kcol .op { font-size: 1.3rem; color: var(--muted); font-family: "STIX Two Math", Georgia, serif; margin-bottom: 4px; }
+.kgrid { display: grid; grid-template-columns: repeat(3, 54px); gap: 5px; margin: 6px 0; justify-content: center; }
 .kgrid input {
-  width: 58px; text-align: center; padding: 7px 4px;
+  width: 54px; text-align: center; padding: 7px 4px;
   font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: .85rem;
 }
 .inspect {
@@ -587,7 +592,11 @@ footer { border-top: 1px solid var(--line); margin-top: 64px; padding: 28px 0 48
         <div>
           <canvas id="srcCanvas" width="96" height="96"></canvas>
           <div class="cap">입력 x (96×96, 회색조)</div>
+        </div>
+        <div class="kcol">
+          <div class="op">∗</div>
           <div class="kgrid" id="kgrid"></div>
+          <div class="cap">커널 k — 직접 수정 가능</div>
           <div class="cap" id="kNote">합=9 → 자동으로 9로 나눔</div>
         </div>
         <div>
