@@ -1,0 +1,1365 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="합성곱(Convolution) 인터랙티브 교육 자료 — 뒤집고·밀고·곱하고·더하는 수학적 정의부터 임펄스 응답, 확률분포의 합, 합성곱 정리, 2D 이미지 필터, CNN까지 브라우저에서 직접 실험">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9C%B3%EF%B8%8F%3C/text%3E%3C/svg%3E">
+<meta charset="utf-8">
+<title>합성곱(Convolution)은 실제로 무엇을 하는가 — 인터랙티브 노트</title>
+
+<style>
+/* ---------- tokens ---------- */
+:root {
+  color-scheme: light;
+  --bg: #f6f7f5;
+  --surface: #fdfdfc;
+  --surface2: #eff1ee;
+  --ink: #171a18;
+  --ink2: #565b57;
+  --muted: #898781;
+  --line: #e1e0d9;
+  --hairline: rgba(11,11,11,0.10);
+  --accent: #157a63;
+  --accent-soft: #ddeee7;
+  --accent-ink: #0d5c4a;
+  --code-bg: #eef1ee;
+  --s1: #2a78d6;          /* signal (blue) */
+  --s2: #eb6834;          /* kernel (orange) */
+  --s3: #8a5fd0;          /* product (purple) */
+  --good: #0ca30c;
+  --crit: #d03b3b;
+  --grid: #e1e0d9;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --bg: #0f1211;
+    --surface: #181c1a;
+    --surface2: #202522;
+    --ink: #edf0ed;
+    --ink2: #aab3ac;
+    --muted: #898781;
+    --line: #262b28;
+    --hairline: rgba(255,255,255,0.10);
+    --accent: #43c3a0;
+    --accent-soft: #14352c;
+    --accent-ink: #6fd7ba;
+    --code-bg: #141816;
+    --s1: #5b9cf0;
+    --s2: #e9743f;
+    --s3: #a583e2;
+    --grid: #2c2c2a;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0f1211; --surface: #181c1a; --surface2: #202522;
+  --ink: #edf0ed; --ink2: #aab3ac; --muted: #898781;
+  --line: #262b28; --hairline: rgba(255,255,255,0.10);
+  --accent: #43c3a0; --accent-soft: #14352c; --accent-ink: #6fd7ba;
+  --code-bg: #141816; --s1: #5b9cf0; --s2: #e9743f; --s3: #a583e2; --grid: #2c2c2a;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f6f7f5; --surface: #fdfdfc; --surface2: #eff1ee;
+  --ink: #171a18; --ink2: #565b57; --muted: #898781;
+  --line: #e1e0d9; --hairline: rgba(11,11,11,0.10);
+  --accent: #157a63; --accent-soft: #ddeee7; --accent-ink: #0d5c4a;
+  --code-bg: #eef1ee; --s1: #2a78d6; --s2: #eb6834; --s3: #8a5fd0; --grid: #e1e0d9;
+}
+
+/* ---------- base ---------- */
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", Pretendard, "Segoe UI", "Noto Sans KR", "Malgun Gothic", sans-serif;
+  line-height: 1.72;
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+.mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+a { color: var(--accent-ink); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+a:hover { color: var(--accent); }
+button {
+  font: inherit; cursor: pointer;
+  background: var(--surface2); color: var(--ink);
+  border: 1px solid var(--line); border-radius: 7px;
+  padding: 6px 14px;
+}
+button:hover { border-color: var(--accent); }
+button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+:root[data-theme="dark"] button.primary { color: #06231b; }
+@media (prefers-color-scheme: dark) { :root:where(:not([data-theme="light"])) button.primary { color: #06231b; } }
+button.seg { border-radius: 999px; padding: 5px 13px; font-size: .85rem; }
+button.seg.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+input[type=range] { accent-color: var(--accent); }
+input[type=text], input[type=number], select {
+  font: inherit; background: var(--surface); color: var(--ink);
+  border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px;
+}
+code, pre {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.86em;
+}
+code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+pre {
+  background: var(--code-bg); border: 1px solid var(--line);
+  border-radius: 10px; padding: 14px 16px; overflow-x: auto; line-height: 1.55;
+}
+pre code { background: none; padding: 0; }
+
+/* ---------- layout ---------- */
+.wrap { max-width: 1000px; margin: 0 auto; padding: 0 20px; }
+.prose { max-width: 700px; }
+.prose p { margin: 0 0 1em; }
+section { padding: 48px 0 8px; }
+h1, h2, h3, h4 { line-height: 1.3; text-wrap: balance; margin: 0 0 .5em; }
+h2 { font-size: 1.7rem; letter-spacing: -0.01em; }
+h3 { font-size: 1.15rem; margin-top: 1.6em; }
+.eyebrow {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--accent-ink); margin-bottom: 10px;
+}
+.secnum {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  color: var(--accent); font-size: .95rem; margin-right: 8px;
+}
+
+/* header */
+#progress { position: fixed; top: 0; left: 0; height: 3px; background: var(--accent); width: 0; z-index: 60; }
+header.site {
+  position: sticky; top: 0; z-index: 50;
+  background: color-mix(in srgb, var(--bg) 86%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+}
+header.site .wrap { display: flex; align-items: center; gap: 18px; height: 52px; }
+header.site .brand { font-weight: 700; font-size: .95rem; white-space: nowrap; }
+header.site nav { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+header.site nav a {
+  font-size: .82rem; color: var(--ink2); text-decoration: none;
+  padding: 4px 10px; border-radius: 999px; white-space: nowrap;
+}
+header.site nav a:hover { color: var(--ink); background: var(--surface2); }
+header.site nav a.on { color: var(--accent-ink); background: var(--accent-soft); font-weight: 600; }
+#themeBtn { margin-left: auto; border-radius: 999px; padding: 4px 10px; font-size: .9rem; }
+
+/* hero */
+.hero { padding: 72px 0 20px; }
+.hero h1 { font-size: clamp(1.9rem, 4.5vw, 2.9rem); letter-spacing: -0.02em; margin-bottom: .4em; }
+.hero .sub { color: var(--ink2); font-size: 1.06rem; max-width: 660px; }
+.hero .meta { color: var(--muted); font-size: .85rem; margin-top: 18px; }
+
+/* cards & demos */
+.demo {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: 14px; padding: 20px; margin: 22px 0 30px;
+  box-shadow: 0 1px 2px var(--hairline);
+}
+.demo .demo-title { font-weight: 700; font-size: .95rem; margin-bottom: 4px; }
+.demo .demo-desc { color: var(--ink2); font-size: .88rem; margin-bottom: 14px; }
+.controls { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; margin-bottom: 14px; font-size: .88rem; }
+.controls label { color: var(--ink2); display: inline-flex; align-items: center; gap: 7px; }
+.controls .grp { display: inline-flex; gap: 5px; flex-wrap: wrap; }
+canvas.chart { width: 100%; height: auto; display: block; border-radius: 8px; }
+.readout {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: .82rem;
+  background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px;
+  padding: 10px 12px; margin-top: 12px; overflow-x: auto; white-space: nowrap; line-height: 1.9;
+}
+.legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: .8rem; color: var(--ink2); margin-top: 8px; }
+.legend .sw { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+
+/* formulas */
+.formula {
+  background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--accent);
+  border-radius: 10px; padding: 14px 18px; margin: 18px 0;
+  font-family: "STIX Two Math", "Cambria Math", Georgia, serif;
+  font-size: 1.12rem; overflow-x: auto;
+}
+.formula .note { font-family: inherit; display: block; margin-top: 6px; font-size: .8rem; color: var(--muted); font-family: -apple-system, sans-serif; }
+.formula sub, .formula sup { font-size: .68em; }
+.hl-f { color: var(--s1); font-weight: 600; }
+.hl-g { color: var(--s2); font-weight: 600; }
+.hl-y { color: var(--accent-ink); font-weight: 600; }
+.hl-p { color: var(--s3); font-weight: 600; }
+
+.callout {
+  background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  border-radius: 10px; padding: 14px 18px; margin: 18px 0; font-size: .93rem;
+}
+.callout b { color: var(--accent-ink); }
+.steps { counter-reset: step; padding-left: 0; list-style: none; margin: 16px 0; }
+.steps li { counter-increment: step; position: relative; padding-left: 40px; margin-bottom: 10px; }
+.steps li::before {
+  content: counter(step); position: absolute; left: 0; top: 2px;
+  width: 26px; height: 26px; border-radius: 50%;
+  background: var(--accent-soft); color: var(--accent-ink); font-weight: 700; font-size: .85rem;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* 2D demo */
+.img2d { display: grid; grid-template-columns: auto auto 1fr; gap: 18px; align-items: start; }
+@media (max-width: 780px) { .img2d { grid-template-columns: 1fr 1fr; } .img2d .inspect { grid-column: 1 / -1; } }
+.img2d canvas { image-rendering: pixelated; border: 1px solid var(--line); border-radius: 8px; width: 240px; max-width: 100%; height: auto; display: block; cursor: crosshair; }
+.img2d .cap { font-size: .8rem; color: var(--muted); text-align: center; margin-top: 6px; }
+.kgrid { display: grid; grid-template-columns: repeat(3, 58px); gap: 5px; margin: 10px 0; }
+.kgrid input {
+  width: 58px; text-align: center; padding: 7px 4px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: .85rem;
+}
+.inspect {
+  background: var(--code-bg); border: 1px solid var(--line); border-radius: 10px;
+  padding: 12px 14px; font-size: .8rem; min-height: 150px;
+}
+.inspect table { border-collapse: collapse; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: .76rem; margin: 6px 0; }
+.inspect td { border: 1px solid var(--line); padding: 3px 7px; text-align: right; min-width: 40px; }
+.inspect .sum { font-weight: 700; color: var(--accent-ink); }
+
+/* stride/padding grid */
+.sp-wrap { display: flex; gap: 28px; flex-wrap: wrap; align-items: flex-start; }
+.sp-grid { display: grid; gap: 3px; }
+.sp-cell {
+  width: 26px; height: 26px; border-radius: 4px; background: var(--surface2);
+  border: 1px solid var(--line); font-size: .62rem; display: flex; align-items: center; justify-content: center;
+  color: var(--muted); font-family: ui-monospace, monospace;
+}
+.sp-cell.pad { background: transparent; border-style: dashed; }
+.sp-cell.win { background: color-mix(in srgb, var(--s2) 32%, var(--surface2)); border-color: var(--s2); }
+.sp-cell.out { background: var(--surface2); }
+.sp-cell.out.done { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-ink); font-weight: 700; }
+.sp-cell.out.cur { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+.sp-label { font-size: .78rem; color: var(--ink2); margin-bottom: 8px; }
+.sp-formula { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: .88rem; background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; margin-top: 14px; display: inline-block; }
+.sp-formula b { color: var(--accent-ink); }
+
+/* quiz */
+.quiz { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 20px; margin: 18px 0; }
+.quiz .q { font-weight: 600; margin-bottom: 12px; }
+.quiz .opts { display: grid; gap: 8px; }
+.quiz .opts button { text-align: left; padding: 10px 14px; border-radius: 9px; font-size: .92rem; }
+.quiz .opts button.correct { background: var(--accent-soft); border-color: var(--good); }
+.quiz .opts button.wrong { border-color: var(--crit); opacity: .75; }
+.quiz .expl { display: none; margin-top: 12px; font-size: .88rem; color: var(--ink2); border-top: 1px dashed var(--line); padding-top: 10px; }
+.quiz .expl.show { display: block; }
+.quiz .expl b { color: var(--accent-ink); }
+
+footer { border-top: 1px solid var(--line); margin-top: 64px; padding: 28px 0 48px; color: var(--muted); font-size: .85rem; }
+.refs li { margin-bottom: 6px; }
+</style>
+</head>
+<body>
+<div id="progress"></div>
+
+<header class="site">
+  <div class="wrap">
+    <div class="brand">✳️ how-conv-work</div>
+    <nav id="topnav">
+      <a href="#def">정의</a>
+      <a href="#slide">1D 실험</a>
+      <a href="#meaning">의미</a>
+      <a href="#lti">임펄스 응답</a>
+      <a href="#prob">확률</a>
+      <a href="#freq">주파수</a>
+      <a href="#img">2D 이미지</a>
+      <a href="#cnn">CNN</a>
+      <a href="#quiz">퀴즈</a>
+    </nav>
+    <button id="themeBtn" title="테마 전환">◐</button>
+  </div>
+</header>
+
+<div class="hero">
+  <div class="wrap">
+    <div class="eyebrow">Interactive Note · How AI Works</div>
+    <h1>합성곱(Convolution)은<br>실제로 무엇을 하는가</h1>
+    <p class="sub">
+      "뒤집고, 밀고, 곱하고, 더한다." 신호 스무딩부터 CNN의 특징 추출까지,
+      전혀 달라 보이는 문제들이 전부 이 한 연산으로 수렴합니다.
+      수학적 정의가 <em>왜 그렇게 생겼는지</em>, 그 결과가 <em>무엇을 의미하는지</em>를
+      브라우저에서 직접 실험하며 확인합니다.
+    </p>
+    <p class="meta">모든 데모는 순수 JavaScript로 이 페이지 안에서 계산됩니다 — 서버도, 라이브러리도 없습니다.</p>
+  </div>
+</div>
+
+<!-- ============ 1. 정의 ============ -->
+<section id="def">
+  <div class="wrap">
+    <div class="eyebrow">Section 1</div>
+    <h2><span class="secnum">§1</span>정의 — 뒤집고, 밀고, 곱하고, 더한다</h2>
+    <div class="prose">
+      <p>
+        두 함수 <span class="hl-f">f</span>와 <span class="hl-g">g</span>의 합성곱은 이렇게 정의됩니다.
+      </p>
+    </div>
+
+    <div class="formula">
+      (<span class="hl-f">f</span> ∗ <span class="hl-g">g</span>)(t) = ∫<sub>−∞</sub><sup>∞</sup> <span class="hl-f">f</span>(τ) · <span class="hl-g">g</span>(t − τ) dτ
+      <span class="note">연속 신호 버전 — τ 위를 훑으면서 f와 "뒤집어서 t만큼 민 g"를 곱해 적분</span>
+    </div>
+    <div class="formula">
+      (<span class="hl-f">f</span> ∗ <span class="hl-g">g</span>)[n] = Σ<sub>m</sub> <span class="hl-f">f</span>[m] · <span class="hl-g">g</span>[n − m]
+      <span class="note">이산 신호 버전 — 이 페이지의 모든 데모는 이 식을 그대로 계산합니다</span>
+    </div>
+
+    <div class="prose">
+      <p>
+        수식이 낯설다면 <code>g[n − m]</code> 하나만 뜯어보면 됩니다.
+        m이 커질수록 n − m은 <em>작아지므로</em>, g를 <b>좌우로 뒤집은 것</b>이고,
+        n이 커지면 뒤집힌 g가 통째로 오른쪽으로 <b>밀립니다</b>.
+        그래서 출력의 n번째 값 하나를 계산하는 과정은 항상 네 단계입니다.
+      </p>
+    </div>
+
+    <ol class="steps prose">
+      <li><b>뒤집기(flip)</b> — 커널 <span class="hl-g">g</span>를 좌우 반전해 <span class="hl-g">g[−m]</span>을 만든다.</li>
+      <li><b>밀기(shift)</b> — 뒤집은 커널을 n만큼 밀어 <span class="hl-g">g[n − m]</span>을 만든다.</li>
+      <li><b>곱하기(multiply)</b> — 겹치는 자리끼리 <span class="hl-f">f[m]</span> · <span class="hl-g">g[n − m]</span>을 계산한다.</li>
+      <li><b>더하기(sum)</b> — 전부 더한 값이 출력 <span class="hl-y">y[n]</span> 하나가 된다. n을 1 옮겨 반복.</li>
+    </ol>
+
+    <div class="callout">
+      <b>핵심 직관:</b> 출력의 각 점 <span class="hl-y">y[n]</span>은 "입력을 그 위치 주변에서
+      커널이 정한 가중치로 섞은(가중합한) 값"입니다. 커널을 무엇으로 두느냐에 따라
+      같은 연산이 평균이 되고, 미분이 되고, 메아리가 되고, 엣지 검출기가 됩니다.
+    </div>
+  </div>
+</section>
+
+<!-- ============ 2. 1D 실험 ============ -->
+<section id="slide">
+  <div class="wrap">
+    <div class="eyebrow">Section 2</div>
+    <h2><span class="secnum">§2</span>직접 밀어 보기 — 1D 합성곱 기계</h2>
+    <div class="prose">
+      <p>
+        아래 슬라이더가 정의식의 n입니다. 위 그래프의 파란 막대가 입력 <span class="hl-f">f</span>,
+        주황 윤곽이 <b>뒤집혀서 n 위치에 와 있는</b> 커널 <span class="hl-g">g[n − m]</span>입니다.
+        가운데 보라 막대가 자리별 곱, 그 합이 아래 그래프의 출력 <span class="hl-y">y[n]</span> 한 점이 됩니다.
+      </p>
+    </div>
+
+    <div class="demo">
+      <div class="demo-title">1D 합성곱 기계</div>
+      <div class="demo-desc">신호와 커널을 바꿔 가며 재생해 보세요. "뒤집기" 스위치를 끄면 §4에서 다룰 교차상관(cross-correlation)이 됩니다.</div>
+      <div class="controls">
+        <label>신호 f
+          <select id="sigSel">
+            <option value="pulse">사각 펄스</option>
+            <option value="step">계단</option>
+            <option value="ramp">램프</option>
+            <option value="noisy" selected>노이즈 낀 사인</option>
+            <option value="impulse">임펄스 하나</option>
+          </select>
+        </label>
+        <label>커널 g
+          <select id="kerSel">
+            <option value="avg" selected>이동평균 [⅓ ⅓ ⅓]</option>
+            <option value="gauss">가우시안 (5칸)</option>
+            <option value="diff">차분 [−1 0 +1]</option>
+            <option value="echo">감쇠 메아리 (5칸)</option>
+            <option value="rampk">비대칭 램프 (5칸)</option>
+          </select>
+        </label>
+        <label><input type="checkbox" id="flipChk" checked> 커널 뒤집기 (합성곱)</label>
+        <button id="playBtn" class="primary">▶ 재생</button>
+      </div>
+      <div class="controls">
+        <label style="flex:1 1 300px">위치 n <input type="range" id="posSlider" min="0" max="1" value="0" style="flex:1"></label>
+      </div>
+      <canvas id="convCanvas" class="chart"></canvas>
+      <div class="legend">
+        <span><span class="sw" style="background:var(--s1)"></span>입력 f[m]</span>
+        <span><span class="sw" style="background:var(--s2)"></span>커널 g[n−m] (뒤집혀 밀린 상태)</span>
+        <span><span class="sw" style="background:var(--s3)"></span>자리별 곱</span>
+        <span><span class="sw" style="background:var(--accent)"></span>출력 y[n]</span>
+      </div>
+      <div class="readout" id="convReadout"></div>
+    </div>
+
+    <div class="prose">
+      <p>
+        커널을 <b>차분 [−1 0 +1]</b>로 바꿔 보세요. 신호가 평평한 곳에서는 출력이 0에 가깝고,
+        신호가 급하게 변하는 곳에서만 출력이 튑니다 — 같은 기계가 <em>변화 감지기</em>가 됐습니다.
+        <b>비대칭 램프</b> 커널에서 "뒤집기"를 껐다 켜면 출력이 달라지는 것도 확인해 보세요.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 3. 의미 ============ -->
+<section id="meaning">
+  <div class="wrap">
+    <div class="eyebrow">Section 3</div>
+    <h2><span class="secnum">§3</span>그래서 수학적으로 무슨 의미인가</h2>
+    <div class="prose">
+      <p>합성곱은 하나의 연산이지만, 커널과 보는 관점에 따라 서로 다른 네 가지 얼굴을 가집니다. 이 노트의 나머지 절이 각각을 실험으로 다룹니다.</p>
+      <p>
+        <b>① 이동하는 가중평균 (필터).</b> 커널의 합이 1이면 y[n]은 n 주변 값들의 가중평균입니다.
+        평평한 커널은 스무딩(저역통과), 부호가 갈리는 커널은 미분(고역통과)이 됩니다. — §2에서 이미 봤습니다.
+      </p>
+      <p>
+        <b>② 시스템의 응답 (중첩 원리).</b> 선형이고 시간에 불변인 시스템(LTI)은
+        "임펄스 하나에 어떻게 반응하는가"만 알면 <em>모든</em> 입력에 대한 출력을 알 수 있고,
+        그 출력이 정확히 입력과 임펄스 응답의 합성곱입니다. — §4
+      </p>
+      <p>
+        <b>③ 독립인 것을 더할 때 생기는 분포.</b> 독립 확률변수 X + Y의 분포는
+        각 분포의 합성곱입니다. 주사위를 여러 개 던지면 종 모양이 나오는 이유가 여기 있습니다. — §5
+      </p>
+      <p>
+        <b>④ 주파수 영역의 곱셈.</b> 시간 영역에서의 합성곱은 주파수 영역에서 단순 곱셈이 됩니다
+        (합성곱 정리). "커널이 어떤 주파수를 살리고 죽이는가"로 필터를 읽을 수 있게 됩니다. — §6
+      </p>
+    </div>
+    <div class="callout">
+      <b>왜 하필 "뒤집기"인가?</b> 다항식 곱셈을 떠올리면 자연스럽습니다.
+      (f₀ + f₁x + f₂x²)(g₀ + g₁x)에서 xⁿ의 계수는 <em>지수의 합이 n이 되는</em> 쌍끼리 곱해 더한
+      Σ f<sub>m</sub>g<sub>n−m</sub> — 정확히 합성곱입니다. 한쪽 인덱스가 커지면 다른 쪽은 작아져야
+      하니, 한쪽을 뒤집어 맞대는 모양이 저절로 나옵니다. 확률(§5)에서도 X + Y = n이 되려면
+      X = m일 때 Y = n − m이어야 하는 것과 같은 구조입니다.
+    </div>
+  </div>
+</section>
+
+<!-- ============ 4. LTI ============ -->
+<section id="lti">
+  <div class="wrap">
+    <div class="eyebrow">Section 4</div>
+    <h2><span class="secnum">§4</span>임펄스 응답 — 합성곱이 어디에나 나타나는 이유</h2>
+    <div class="prose">
+      <p>
+        어떤 시스템(방의 울림, 카메라 렌즈의 흐림, 스프링의 진동…)이 <b>선형</b>(입력을 2배 하면 출력도 2배, 입력을 더하면 출력도 더해짐)이고
+        <b>시간 불변</b>(오늘 치나 내일 치나 반응이 같음)이라고 합시다.
+        임의의 입력은 "크기가 다른 임펄스들의 나열"로 쪼갤 수 있으므로,
+        <b>임펄스 하나에 대한 반응 h</b>만 알면 전체 출력은 각 임펄스가 만든 반응을 겹쳐 더한 것 —
+        즉 y = f ∗ h 입니다. 합성곱의 정의가 아니라 <em>중첩 원리의 결과</em>로 합성곱이 튀어나오는 겁니다.
+      </p>
+      <p>아래 캔버스를 <b>클릭해서 임펄스를 놓아 보세요</b> (드래그한 높이만큼 크기가 정해집니다). 각 임펄스가 메아리(임펄스 응답)를 만들고, 회색 굵은 선이 그 합 = 합성곱입니다.</p>
+    </div>
+
+    <div class="demo">
+      <div class="demo-title">중첩 놀이터 — 클릭해서 임펄스 놓기</div>
+      <div class="demo-desc">임펄스 응답 h = 감쇠 진동(메아리). 임펄스를 겹쳐 놓으면 응답도 그대로 겹쳐집니다.</div>
+      <div class="controls">
+        <div class="grp">
+          <button class="seg" data-lti="one">임펄스 1개</button>
+          <button class="seg" data-lti="two">2개 (겹침)</button>
+          <button class="seg" data-lti="train">여러 개</button>
+          <button class="seg" data-lti="clear">지우기</button>
+        </div>
+        <label>임펄스 응답
+          <select id="ltiKer">
+            <option value="echo" selected>감쇠 메아리</option>
+            <option value="ring">감쇠 진동</option>
+            <option value="blur">뭉개짐(가우시안)</option>
+          </select>
+        </label>
+      </div>
+      <canvas id="ltiCanvas" class="chart" style="cursor:crosshair"></canvas>
+      <div class="legend">
+        <span><span class="sw" style="background:var(--s1)"></span>입력 임펄스 f</span>
+        <span><span class="sw" style="background:var(--s2)"></span>각 임펄스가 만든 응답 (h를 밀고 스케일)</span>
+        <span><span class="sw" style="background:var(--ink)"></span>합 = f ∗ h</span>
+      </div>
+    </div>
+
+    <div class="callout">
+      <b>이것이 §1 정의의 "물리적 독해"입니다:</b>
+      y[n] = Σ<sub>m</sub> f[m] · h[n − m] — "n 시점의 출력은, 과거 m 시점에 들어온 입력 f[m]이
+      (n − m)만큼 시간이 지난 뒤 남긴 흔적 h[n − m]들의 총합이다."
+    </div>
+  </div>
+</section>
+
+<!-- ============ 5. 확률 ============ -->
+<section id="prob">
+  <div class="wrap">
+    <div class="eyebrow">Section 5</div>
+    <h2><span class="secnum">§5</span>주사위를 더하면 — 확률분포의 합성곱</h2>
+    <div class="prose">
+      <p>
+        독립 확률변수 X, Y에 대해 P(X + Y = n) = Σ<sub>m</sub> P(X = m) · P(Y = n − m).
+        합이 n이 되는 모든 조합을 더한 것 — 정의 그대로 합성곱입니다.
+        주사위 1개의 분포는 평평하지만, 개수를 늘릴수록(= 합성곱을 반복할수록) 분포가 종 모양으로
+        수렴합니다. 이것이 <b>중심극한정리</b>의 시각적 실체입니다: 가우시안은 "합성곱을 반복했을 때의 고정점"입니다.
+      </p>
+    </div>
+    <div class="demo">
+      <div class="demo-title">주사위 합의 분포 = 균등분포의 반복 합성곱</div>
+      <div class="controls">
+        <label style="flex:1 1 260px">주사위 개수 <b id="diceLabel" class="mono">2</b>개
+          <input type="range" id="diceSlider" min="1" max="6" value="2" style="flex:1"></label>
+      </div>
+      <canvas id="diceCanvas" class="chart"></canvas>
+      <div class="legend">
+        <span><span class="sw" style="background:var(--accent)"></span>합이 각 값이 될 확률 (막대 위 숫자 = 경우의 수)</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 6. 주파수 ============ -->
+<section id="freq">
+  <div class="wrap">
+    <div class="eyebrow">Section 6</div>
+    <h2><span class="secnum">§6</span>합성곱 정리 — 시간에서 밀며 곱하기 = 주파수에서 그냥 곱하기</h2>
+    <div class="formula">
+      ℱ(<span class="hl-f">f</span> ∗ <span class="hl-g">g</span>) = ℱ(<span class="hl-f">f</span>) · ℱ(<span class="hl-g">g</span>)
+      <span class="note">푸리에 변환을 거치면 합성곱이 (주파수별) 곱셈이 된다 — 아래에서 실제 DFT로 검증합니다</span>
+    </div>
+    <div class="prose">
+      <p>
+        커널의 푸리에 변환 |ℱ(g)|는 "이 필터가 각 주파수를 몇 배로 통과시키는가"라는 <b>주파수 응답</b>입니다.
+        이동평균 커널의 주파수 응답은 고주파에서 0에 가깝습니다 — 그래서 노이즈(고주파)가 죽고 스무딩이 됩니다.
+        차분 커널은 반대로 저주파를 죽입니다 — 그래서 변화(고주파)만 남습니다.
+      </p>
+      <p>아래에서 노이즈 낀 신호에 커널을 합성곱한 뒤, 세 스펙트럼을 비교합니다. 출력 스펙트럼(초록 막대)이 입력 스펙트럼 × 커널 응답(점선)과 <b>정확히 일치</b>하는 것을 확인하세요.</p>
+    </div>
+    <div class="demo">
+      <div class="demo-title">DFT로 검증하는 합성곱 정리</div>
+      <div class="controls">
+        <label>커널
+          <select id="freqKer">
+            <option value="avg" selected>이동평균 (3칸)</option>
+            <option value="avg7">이동평균 (7칸)</option>
+            <option value="gauss">가우시안 (5칸)</option>
+            <option value="diff">차분 [−1 0 +1]</option>
+          </select>
+        </label>
+      </div>
+      <canvas id="freqCanvas" class="chart"></canvas>
+      <div class="legend">
+        <span><span class="sw" style="background:var(--s1)"></span>|ℱ(f)| 입력 스펙트럼</span>
+        <span><span class="sw" style="background:var(--s2)"></span>|ℱ(g)| 커널 주파수 응답</span>
+        <span><span class="sw" style="background:var(--accent)"></span>|ℱ(f∗g)| 출력 스펙트럼</span>
+        <span><span class="sw" style="background:transparent;border:1.5px dashed var(--ink2)"></span>|ℱ(f)|·|ℱ(g)| (곱)</span>
+      </div>
+    </div>
+    <div class="callout">
+      <b>덤:</b> 이 정리 덕분에 긴 합성곱은 FFT로 O(n log n)에 계산할 수 있고,
+      큰 수의 곱셈(자릿수 배열의 합성곱!)도 FFT로 빨라집니다. 합성곱 ↔ 곱셈의 다리인 셈입니다.
+    </div>
+  </div>
+</section>
+
+<!-- ============ 7. 2D 이미지 ============ -->
+<section id="img">
+  <div class="wrap">
+    <div class="eyebrow">Section 7</div>
+    <h2><span class="secnum">§7</span>2차원으로 — 이미지 필터</h2>
+    <div class="prose">
+      <p>
+        차원을 올려도 정의는 그대로입니다. 커널이 3×3 창이 되어 이미지 위를 훑으며,
+        각 위치에서 창 안의 픽셀 × 커널 값을 전부 곱해 더한 것이 출력 픽셀 하나가 됩니다.
+      </p>
+    </div>
+    <div class="formula" style="font-size:1rem">
+      y[i, j] = Σ<sub>a</sub> Σ<sub>b</sub> <span class="hl-f">x</span>[i−a, j−b] · <span class="hl-g">k</span>[a, b]
+    </div>
+    <div class="prose">
+      <p>
+        <b>출력 이미지 위에 마우스를 올려 보세요.</b> 그 픽셀 하나가 어떤 3×3 곱셈-덧셈에서 나왔는지
+        오른쪽 패널에 계산 과정이 그대로 표시됩니다. 커널 값은 직접 수정할 수도 있습니다.
+      </p>
+    </div>
+
+    <div class="demo">
+      <div class="demo-title">3×3 이미지 합성곱 — 커널을 바꾸면 필터의 성격이 바뀝니다</div>
+      <div class="controls">
+        <div class="grp" id="kerPresets">
+          <button class="seg" data-k="identity">원본</button>
+          <button class="seg on" data-k="box">박스 블러</button>
+          <button class="seg" data-k="gauss">가우시안</button>
+          <button class="seg" data-k="sharpen">샤픈</button>
+          <button class="seg" data-k="sobelx">엣지↕ (Sobel X)</button>
+          <button class="seg" data-k="sobely">엣지↔ (Sobel Y)</button>
+          <button class="seg" data-k="emboss">엠보스</button>
+        </div>
+      </div>
+      <div class="img2d">
+        <div>
+          <canvas id="srcCanvas" width="96" height="96"></canvas>
+          <div class="cap">입력 x (96×96, 회색조)</div>
+          <div class="kgrid" id="kgrid"></div>
+          <div class="cap" id="kNote">합=9 → 자동으로 9로 나눔</div>
+        </div>
+        <div>
+          <canvas id="dstCanvas" width="96" height="96"></canvas>
+          <div class="cap">출력 y = x ∗ k — <b>마우스를 올려 보세요</b></div>
+        </div>
+        <div class="inspect" id="inspect">출력 이미지 위에 마우스를 올리면<br>그 픽셀의 계산 과정이 여기 표시됩니다.</div>
+      </div>
+    </div>
+
+    <div class="prose">
+      <p>
+        같은 "곱하고 더하기"인데 커널만 바꾸면 — 흐려지고(블러 = 2D 가중평균 = 저역통과),
+        또렷해지고(샤픈 = 원본 + 고주파), 윤곽만 남습니다(Sobel = 방향별 미분).
+        §2~§6에서 본 1D의 의미들이 그대로 2D로 올라온 것입니다.
+        Sobel처럼 커널 합이 0인 필터는 평평한 영역을 0(회색으로 표시)으로 보내고 변화만 남깁니다.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 8. CNN ============ -->
+<section id="cnn">
+  <div class="wrap">
+    <div class="eyebrow">Section 8</div>
+    <h2><span class="secnum">§8</span>CNN — 커널을 손으로 만들지 않고 학습시킨다</h2>
+    <div class="prose">
+      <p>
+        §7에서 우리는 Sobel 같은 커널을 <em>사람이 설계</em>했습니다. CNN의 아이디어는 단순합니다:
+        <b>커널의 9개(또는 그 이상) 숫자를 학습 가능한 파라미터로 두고, 역전파로 데이터에서 배우게 하자.</b>
+        실제로 학습된 CNN의 첫 층에서는 Sobel과 놀랍도록 닮은 엣지/색 검출 커널이 저절로 나타납니다.
+      </p>
+      <p>합성곱을 쓰는 이유는 수학적 성질 그대로입니다:</p>
+      <p>
+        <b>① 파라미터 공유</b> — 96×96 이미지를 완전연결층으로 처리하면 위치마다 다른 가중치가 필요하지만,
+        합성곱은 같은 3×3 커널 하나를 <em>모든 위치에 재사용</em>합니다 (9,216픽셀 → 파라미터 9개).<br>
+        <b>② 평행이동 등변성(equivariance)</b> — 시간 불변성(§4)의 공간 버전. 입력이 옆으로 밀리면
+        출력 특징맵도 그대로 밀립니다. "고양이는 어디에 있어도 고양이"라는 사전 지식을 구조에 심은 것.<br>
+        <b>③ 지역성</b> — 각 출력은 작은 창만 봅니다. 층을 쌓으면 수용 영역(receptive field)이 점점 넓어져
+        엣지 → 무늬 → 부위 → 물체로 추상화가 올라갑니다.
+      </p>
+      <p>
+        마지막 퍼즐 한 조각: 출력 크기입니다. 패딩 P를 두르고 스트라이드 S로 건너뛰며 커널 K를 밀면 —
+      </p>
+    </div>
+
+    <div class="demo">
+      <div class="demo-title">스트라이드 · 패딩 놀이터</div>
+      <div class="demo-desc">주황 창이 커널, 오른쪽이 출력 특징맵. ▶를 누르면 커널이 훑는 순서대로 출력이 채워집니다.</div>
+      <div class="controls">
+        <label>입력 N <input type="range" id="spN" min="4" max="9" value="6"> <b id="spNv" class="mono">6</b></label>
+        <label>커널 K <input type="range" id="spK" min="2" max="4" value="3"> <b id="spKv" class="mono">3</b></label>
+        <label>스트라이드 S <input type="range" id="spS" min="1" max="3" value="1"> <b id="spSv" class="mono">1</b></label>
+        <label>패딩 P <input type="range" id="spP" min="0" max="2" value="0"> <b id="spPv" class="mono">0</b></label>
+        <button id="spPlay" class="primary">▶ 훑기</button>
+      </div>
+      <div class="sp-wrap">
+        <div>
+          <div class="sp-label">입력 (점선 = 패딩)</div>
+          <div class="sp-grid" id="spInGrid"></div>
+        </div>
+        <div>
+          <div class="sp-label">출력 특징맵</div>
+          <div class="sp-grid" id="spOutGrid"></div>
+        </div>
+      </div>
+      <div class="sp-formula" id="spFormula"></div>
+    </div>
+
+    <div class="prose">
+      <p>
+        한 가지 고백: 딥러닝 프레임워크의 <code>Conv2d</code>는 §1의 정의에서 <b>뒤집기를 생략</b>합니다
+        (즉 수학적으로는 교차상관). 커널을 어차피 학습하기 때문에, 뒤집힌 커널을 배우면 그만이라
+        결과적으로 아무 차이가 없기 때문입니다. §2에서 뒤집기 스위치를 꺼 봤다면 이미 감이 올 겁니다.
+      </p>
+    </div>
+    <pre><code># PyTorch로 §7의 Sobel X를 그대로 재현
+import torch, torch.nn.functional as F
+sobel_x = torch.tensor([[-1., 0., 1.],
+                        [-2., 0., 2.],
+                        [-1., 0., 1.]]).view(1, 1, 3, 3)
+y = F.conv2d(x, sobel_x, padding=1)   # 이름은 conv지만 실은 교차상관!</code></pre>
+  </div>
+</section>
+
+<!-- ============ 9. 퀴즈 ============ -->
+<section id="quiz">
+  <div class="wrap">
+    <div class="eyebrow">Section 9</div>
+    <h2><span class="secnum">§9</span>이해했는지 확인하기</h2>
+    <div id="quizArea"></div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p><b>더 읽을거리</b></p>
+    <ul class="refs">
+      <li><a href="https://www.youtube.com/watch?v=KuXjwB4LzSA" target="_blank" rel="noopener">3Blue1Brown — But what is a convolution?</a> · 이 노트의 §1·§5와 같은 관점의 영상</li>
+      <li><a href="https://cs231n.github.io/convolutional-networks/" target="_blank" rel="noopener">CS231n — Convolutional Networks</a> · §8의 CNN 관점 심화</li>
+      <li><a href="https://www.deeplearningbook.org/contents/convnets.html" target="_blank" rel="noopener">Deep Learning Book Ch.9 — Convolutional Networks</a> · 파라미터 공유·등변성의 정식 논의</li>
+      <li><a href="https://betterexplained.com/articles/intuitive-convolution/" target="_blank" rel="noopener">BetterExplained — Intuitive Guide to Convolution</a></li>
+    </ul>
+    <p style="margin-top:20px">
+      <a href="https://github.com/dev-jonghoonpark/how-conv-work">GitHub 저장소</a> ·
+      <a href="https://github.com/dev-jonghoonpark/how-ai-works">how-ai-works 시리즈</a>
+    </p>
+  </div>
+</footer>
+
+<script>
+"use strict";
+/* ================= helpers ================= */
+const $ = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const fmt = (v, d=2) => {
+  let s = (Math.abs(v) < 1e-10 ? 0 : v).toFixed(d);
+  if (s.includes('.')) s = s.replace(/0+$/, '').replace(/\.$/, '');
+  return s;
+};
+
+function conv1d(f, g) {
+  const y = new Array(f.length + g.length - 1).fill(0);
+  for (let n = 0; n < y.length; n++)
+    for (let m = Math.max(0, n - g.length + 1); m <= Math.min(f.length - 1, n); m++)
+      y[n] += f[m] * g[n - m];
+  return y;
+}
+
+/* Hi-DPI canvas setup: returns 2d ctx scaled so drawing units == CSS px */
+function setupCanvas(canvas, cssH) {
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth || canvas.parentElement.clientWidth;
+  canvas.style.height = cssH + 'px';
+  canvas.width = Math.round(w * dpr);
+  canvas.height = Math.round(cssH * dpr);
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { ctx, w, h: cssH };
+}
+
+/* ================= theme ================= */
+const themeBtn = $('#themeBtn');
+themeBtn.addEventListener('click', () => {
+  const r = document.documentElement;
+  const dark = r.dataset.theme === 'dark' ||
+    (!r.dataset.theme && matchMedia('(prefers-color-scheme: dark)').matches);
+  r.dataset.theme = dark ? 'light' : 'dark';
+  redrawAll();
+});
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => redrawAll());
+
+/* ================= progress + scrollspy ================= */
+const navLinks = [...$$('#topnav a')];
+addEventListener('scroll', () => {
+  const h = document.documentElement;
+  $('#progress').style.width = (h.scrollTop / (h.scrollHeight - h.clientHeight) * 100) + '%';
+  let cur = navLinks[0];
+  for (const a of navLinks) {
+    const sec = $(a.getAttribute('href'));
+    if (sec && sec.getBoundingClientRect().top < 140) cur = a;
+  }
+  navLinks.forEach(a => a.classList.toggle('on', a === cur));
+}, { passive: true });
+
+/* ================= §2 1D conv machine ================= */
+const SIGNALS = {
+  pulse:   () => Array.from({length: 16}, (_, i) => (i >= 5 && i <= 10) ? 1 : 0),
+  step:    () => Array.from({length: 16}, (_, i) => i >= 8 ? 1 : 0),
+  ramp:    () => Array.from({length: 16}, (_, i) => i / 15),
+  impulse: () => Array.from({length: 16}, (_, i) => i === 8 ? 1 : 0),
+  noisy:   () => [0.42,0.71,0.95,0.78,0.92,0.55,0.62,0.18,0.30,-0.12,0.05,-0.45,-0.28,-0.62,-0.35,-0.55],
+};
+const KERNELS = {
+  avg:   [1/3, 1/3, 1/3],
+  gauss: [0.06, 0.24, 0.40, 0.24, 0.06],
+  diff:  [-1, 0, 1],
+  echo:  [1, 0.6, 0.36, 0.22, 0.13],
+  rampk: [0.05, 0.1, 0.2, 0.3, 0.35],
+};
+let convState = { f: SIGNALS.noisy(), g: KERNELS.avg, n: 0, flip: true, timer: null };
+
+function convOutput() {
+  const { f, g, flip } = convState;
+  if (flip) return conv1d(f, g);
+  // cross-correlation, aligned to same "window start" indexing as conv
+  const K = g.length, y = new Array(f.length + K - 1).fill(0);
+  for (let n = 0; n < y.length; n++) {
+    const s = n - K + 1;
+    for (let m = Math.max(0, s); m <= Math.min(f.length - 1, n); m++)
+      y[n] += f[m] * g[m - s];
+  }
+  return y;
+}
+
+function drawBars(ctx, vals, x0, y0, w, h, colorFn, maxAbs, highlight) {
+  const bw = w / vals.length;
+  const zero = y0 + h * (maxAbs.min < 0 ? maxAbs.max / (maxAbs.max - maxAbs.min) : 1);
+  ctx.strokeStyle = cssVar('--grid'); ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(x0, zero + .5); ctx.lineTo(x0 + w, zero + .5); ctx.stroke();
+  vals.forEach((v, i) => {
+    const bh = (maxAbs.min < 0)
+      ? v / (maxAbs.max - maxAbs.min) * h
+      : v / maxAbs.max * h;
+    ctx.fillStyle = colorFn(i, v);
+    const bx = x0 + i * bw + bw * 0.15, bwid = bw * 0.7;
+    if (bh >= 0) ctx.fillRect(bx, zero - bh, bwid, Math.max(bh, v !== 0 ? 1 : 0));
+    else ctx.fillRect(bx, zero, bwid, -bh);
+    if (highlight === i) {
+      ctx.strokeStyle = cssVar('--accent'); ctx.lineWidth = 2;
+      ctx.strokeRect(bx - 2, y0 - 2, bwid + 4, h + 4);
+    }
+  });
+  return { bw, zero };
+}
+
+function range(vals, pad=0.1) {
+  let mn = Math.min(0, ...vals), mx = Math.max(0, ...vals);
+  if (mx - mn < 1e-9) mx = 1;
+  const span = mx - mn;
+  return { min: mn - span * pad * (mn < 0 ? 1 : 0), max: mx + span * pad };
+}
+
+function drawConvMachine() {
+  const canvas = $('#convCanvas');
+  const { ctx, w, h } = setupCanvas(canvas, 380);
+  ctx.clearRect(0, 0, w, h);
+  const { f, g, n, flip } = convState;
+  const K = g.length, N = f.length, L = N + K - 1;
+  const y = convOutput();
+  const s = n - K + 1;             // window start in m-space
+  const M = 20, panelH = 96, gap = 26;
+  const plotW = w - M * 2;
+  const bw = plotW / L;
+
+  const label = (t, py) => { ctx.fillStyle = cssVar('--ink2'); ctx.font = '11px ui-monospace, monospace'; ctx.fillText(t, M, py - 6); };
+
+  // panel 1: f + kernel overlay (m-axis: 0..L-1, f occupies 0..N-1)
+  const fPad = [...f, ...new Array(K - 1).fill(0)];
+  label('입력 f[m]  +  커널 g[n−m] (주황 윤곽)', 24);
+  const r1 = range([...f, ...g.map(v => v)]);
+  const p1 = drawBars(ctx, fPad, M, 28, plotW, panelH, i => i < N ? cssVar('--s1') : 'transparent', r1, -1);
+  // kernel overlay at window position
+  ctx.strokeStyle = cssVar('--s2'); ctx.lineWidth = 2;
+  for (let j = 0; j < K; j++) {
+    const m = s + j;
+    if (m < 0 || m >= L) continue;
+    const gv = flip ? g[K - 1 - j] : g[j];
+    const bh = (r1.min < 0) ? gv / (r1.max - r1.min) * panelH : gv / r1.max * panelH;
+    const bx = M + m * p1.bw + p1.bw * 0.15;
+    ctx.strokeRect(bx, bh >= 0 ? p1.zero - bh : p1.zero, p1.bw * 0.7, Math.abs(bh));
+  }
+
+  // panel 2: products
+  const prods = new Array(L).fill(0);
+  for (let j = 0; j < K; j++) {
+    const m = s + j;
+    if (m >= 0 && m < N) prods[m] = f[m] * (flip ? g[K - 1 - j] : g[j]);
+  }
+  const y2 = 28 + panelH + gap;
+  label('자리별 곱  f[m]·g[n−m]  — 이걸 전부 더하면 y[n]', y2 - 4);
+  drawBars(ctx, prods, M, y2, plotW, panelH, () => cssVar('--s3'), range(prods.concat([0.01])), -1);
+
+  // panel 3: output up to n
+  const y3 = y2 + panelH + gap;
+  label('출력 y[n] = (f ∗ g)[n]', y3 - 4);
+  const shown = y.map((v, i) => i <= n ? v : 0);
+  drawBars(ctx, shown, M, y3, plotW, panelH, i => i === n ? cssVar('--accent') : cssVar('--accent') + '99', range(y), n);
+
+  // readout
+  const terms = [];
+  let sum = 0;
+  for (let j = 0; j < K; j++) {
+    const m = s + j;
+    if (m < 0 || m >= N) continue;
+    const gv = flip ? g[K - 1 - j] : g[j];
+    terms.push(`<span class="hl-f">${fmt(f[m])}</span>×<span class="hl-g">${fmt(gv)}</span>`);
+    sum += f[m] * gv;
+  }
+  $('#convReadout').innerHTML =
+    `y[<b>${n}</b>] = ` + (terms.length ? terms.join(' + ') : '(겹침 없음)') +
+    ` = <span class="hl-y"><b>${fmt(sum, 3)}</b></span>` +
+    (flip ? '' : ' <span style="color:var(--muted)">(뒤집기 꺼짐 → 교차상관)</span>');
+}
+
+function convSetup() {
+  const N = convState.f.length, K = convState.g.length;
+  const sl = $('#posSlider');
+  sl.max = N + K - 2;
+  if (+sl.value > +sl.max) sl.value = 0;
+  convState.n = +sl.value;
+  drawConvMachine();
+}
+$('#sigSel').addEventListener('change', e => { convState.f = SIGNALS[e.target.value](); convSetup(); });
+$('#kerSel').addEventListener('change', e => { convState.g = KERNELS[e.target.value]; convSetup(); });
+$('#flipChk').addEventListener('change', e => { convState.flip = e.target.checked; drawConvMachine(); });
+$('#posSlider').addEventListener('input', e => { convState.n = +e.target.value; drawConvMachine(); });
+$('#playBtn').addEventListener('click', () => {
+  if (convState.timer) { clearInterval(convState.timer); convState.timer = null; $('#playBtn').textContent = '▶ 재생'; return; }
+  $('#playBtn').textContent = '⏸ 정지';
+  const sl = $('#posSlider');
+  if (+sl.value >= +sl.max) sl.value = 0;
+  convState.timer = setInterval(() => {
+    if (+sl.value >= +sl.max) { clearInterval(convState.timer); convState.timer = null; $('#playBtn').textContent = '▶ 재생'; return; }
+    sl.value = +sl.value + 1;
+    convState.n = +sl.value;
+    drawConvMachine();
+  }, 260);
+});
+
+/* ================= §4 LTI superposition ================= */
+const LTI_KERNELS = {
+  echo: Array.from({length: 26}, (_, i) => Math.pow(0.82, i)),
+  ring: Array.from({length: 34}, (_, i) => Math.pow(0.88, i) * Math.cos(i * 0.55)),
+  blur: Array.from({length: 15}, (_, i) => Math.exp(-((i - 7) ** 2) / 10)),
+};
+let ltiState = { impulses: [{ pos: 24, amp: 1 }, { pos: 52, amp: 0.6 }], ker: 'echo' };
+const LTI_N = 110;
+
+function drawLTI() {
+  const canvas = $('#ltiCanvas');
+  const { ctx, w, h } = setupCanvas(canvas, 260);
+  ctx.clearRect(0, 0, w, h);
+  const M = 16, plotW = w - M * 2, plotH = h - 40, topY = 20;
+  const g = LTI_KERNELS[ltiState.ker];
+  const f = new Array(LTI_N).fill(0);
+  ltiState.impulses.forEach(im => { f[im.pos] += im.amp; });
+  const y = conv1d(f, g).slice(0, LTI_N);
+  const responses = ltiState.impulses.map(im =>
+    Array.from({length: LTI_N}, (_, n) => (n >= im.pos && n - im.pos < g.length) ? im.amp * g[n - im.pos] : 0));
+  const allVals = [...y, ...ltiState.impulses.map(i => i.amp), 1, -0.3];
+  const r = range(allVals);
+  const X = n => M + n / (LTI_N - 1) * plotW;
+  const Y = v => topY + plotH - (v - r.min) / (r.max - r.min) * plotH;
+
+  ctx.strokeStyle = cssVar('--grid'); ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(M, Y(0) + .5); ctx.lineTo(M + plotW, Y(0) + .5); ctx.stroke();
+
+  // individual responses
+  ctx.lineWidth = 1.5;
+  responses.forEach(resp => {
+    ctx.strokeStyle = cssVar('--s2') + 'aa';
+    ctx.beginPath();
+    resp.forEach((v, n) => n === 0 ? ctx.moveTo(X(n), Y(v)) : ctx.lineTo(X(n), Y(v)));
+    ctx.stroke();
+  });
+  // sum
+  ctx.strokeStyle = cssVar('--ink'); ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  y.forEach((v, n) => n === 0 ? ctx.moveTo(X(n), Y(v)) : ctx.lineTo(X(n), Y(v)));
+  ctx.stroke();
+  // impulses
+  ltiState.impulses.forEach(im => {
+    ctx.strokeStyle = cssVar('--s1'); ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(X(im.pos), Y(0)); ctx.lineTo(X(im.pos), Y(im.amp)); ctx.stroke();
+    ctx.fillStyle = cssVar('--s1');
+    ctx.beginPath(); ctx.arc(X(im.pos), Y(im.amp), 4, 0, 7); ctx.fill();
+  });
+  if (!ltiState.impulses.length) {
+    ctx.fillStyle = cssVar('--muted'); ctx.font = '13px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('여기를 클릭해서 임펄스를 놓아 보세요', w / 2, h / 2); ctx.textAlign = 'left';
+  }
+}
+$('#ltiCanvas').addEventListener('pointerdown', e => {
+  const rect = e.currentTarget.getBoundingClientRect();
+  const frac = (e.clientX - rect.left - 16) / (rect.width - 32);
+  const pos = Math.round(Math.min(1, Math.max(0, frac)) * (LTI_N - 1));
+  const ampFrac = 1 - (e.clientY - rect.top - 20) / (rect.height - 40);
+  const amp = Math.max(0.15, Math.min(1.4, ampFrac * 1.6));
+  const near = ltiState.impulses.findIndex(im => Math.abs(im.pos - pos) < 3);
+  if (near >= 0) ltiState.impulses.splice(near, 1);   // click near an impulse → remove it
+  else ltiState.impulses.push({ pos, amp: +amp.toFixed(2) });
+  drawLTI();
+});
+$$('button[data-lti]').forEach(b => b.addEventListener('click', () => {
+  const m = b.dataset.lti;
+  if (m === 'clear') ltiState.impulses = [];
+  if (m === 'one') ltiState.impulses = [{ pos: 30, amp: 1 }];
+  if (m === 'two') ltiState.impulses = [{ pos: 30, amp: 1 }, { pos: 44, amp: 0.7 }];
+  if (m === 'train') ltiState.impulses = [{pos:12,amp:.9},{pos:34,amp:.5},{pos:48,amp:1.1},{pos:62,amp:.4},{pos:84,amp:.8}];
+  drawLTI();
+}));
+$('#ltiKer').addEventListener('change', e => { ltiState.ker = e.target.value; drawLTI(); });
+
+/* ================= §5 dice ================= */
+function drawDice() {
+  const d = +$('#diceSlider').value;
+  $('#diceLabel').textContent = d;
+  const canvas = $('#diceCanvas');
+  const { ctx, w, h } = setupCanvas(canvas, 240);
+  ctx.clearRect(0, 0, w, h);
+  let dist = [1, 1, 1, 1, 1, 1];               // counts for one die (faces 1..6)
+  for (let i = 1; i < d; i++) dist = conv1d(dist, [1, 1, 1, 1, 1, 1]);
+  const total = Math.pow(6, d);
+  const M = 24, plotW = w - M * 2, plotH = h - 58;
+  const mx = Math.max(...dist);
+  const bw = plotW / dist.length;
+  ctx.font = '10px ui-monospace, monospace'; ctx.textAlign = 'center';
+  dist.forEach((c, i) => {
+    const bh = c / mx * plotH;
+    const bx = M + i * bw;
+    ctx.fillStyle = cssVar('--accent');
+    ctx.fillRect(bx + bw * 0.12, 16 + plotH - bh, bw * 0.76, bh);
+    ctx.fillStyle = cssVar('--ink2');
+    if (dist.length <= 26 || i % 2 === 0)
+      ctx.fillText(String(i + d), bx + bw / 2, h - 26);        // sum value label
+    if (dist.length <= 16)
+      ctx.fillText(String(c), bx + bw / 2, 12 + plotH - bh);   // count label
+  });
+  ctx.fillStyle = cssVar('--muted'); ctx.font = '11px sans-serif';
+  ctx.fillText(`주사위 ${d}개 · 전체 ${total.toLocaleString()}가지 — ${d === 1 ? '균등분포' : `균등분포를 ${d - 1}번 합성곱한 결과`}`, w / 2, h - 8);
+  ctx.textAlign = 'left';
+}
+$('#diceSlider').addEventListener('input', drawDice);
+
+/* ================= §6 convolution theorem ================= */
+function dftMag(x, L) {
+  const X = [];
+  for (let k = 0; k <= Math.floor(L / 2); k++) {
+    let re = 0, im = 0;
+    for (let n = 0; n < L; n++) {
+      const v = n < x.length ? x[n] : 0;
+      const ph = -2 * Math.PI * k * n / L;
+      re += v * Math.cos(ph); im += v * Math.sin(ph);
+    }
+    X.push(Math.hypot(re, im));
+  }
+  return X;
+}
+const FREQ_SIG = Array.from({length: 44}, (_, i) =>
+  Math.sin(2 * Math.PI * i * 2 / 44) + 0.5 * Math.sin(2 * Math.PI * i * 5 / 44) +
+  0.45 * Math.sin(2 * Math.PI * i * 15 / 44 + 1.1) + 0.3 * Math.sin(2 * Math.PI * i * 19 / 44 + 0.4));
+const FREQ_KERNELS = { avg: [1/3,1/3,1/3], avg7: new Array(7).fill(1/7), gauss: KERNELS.gauss, diff: [-1,0,1] };
+
+function drawFreq() {
+  const g = FREQ_KERNELS[$('#freqKer').value];
+  const f = FREQ_SIG;
+  const y = conv1d(f, g);
+  const L = y.length;
+  const Xf = dftMag(f, L), Xg = dftMag(g, L), Xy = dftMag(y, L);
+  const prod = Xf.map((v, i) => v * Xg[i]);
+  const canvas = $('#freqCanvas');
+  const { ctx, w, h } = setupCanvas(canvas, 300);
+  ctx.clearRect(0, 0, w, h);
+  const cols = w > 700 ? 3 : 1;
+  const panels = [
+    { t: '|ℱ(f)| 입력 스펙트럼', data: Xf, color: cssVar('--s1'), overlay: null },
+    { t: '|ℱ(g)| 커널 주파수 응답', data: Xg, color: cssVar('--s2'), overlay: null, own: true },
+    { t: '|ℱ(f∗g)| 출력 (점선 = |ℱf|·|ℱg|)', data: Xy, color: cssVar('--accent'), overlay: prod },
+  ];
+  const gapX = 22, pw = (w - gapX * (cols - 1)) / cols;
+  const ph = cols === 3 ? h - 40 : (h - 40 - 16 * 2) / 3;
+  panels.forEach((p, pi) => {
+    const px = cols === 3 ? pi * (pw + gapX) : 0;
+    const py = cols === 3 ? 24 : 24 + pi * (ph + 16);
+    const mx = Math.max(...(p.own ? p.data : [...Xf, ...Xy, ...prod])) || 1;
+    ctx.fillStyle = cssVar('--ink2'); ctx.font = '11px ui-monospace, monospace';
+    ctx.fillText(p.t, px, py - 6);
+    const n = p.data.length, bw2 = pw / n;
+    p.data.forEach((v, i) => {
+      const bh = v / mx * (ph - 12);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(px + i * bw2 + 1, py + (ph - 12) - bh, Math.max(bw2 - 2, 1), bh);
+    });
+    if (p.overlay) {
+      ctx.strokeStyle = cssVar('--ink2'); ctx.setLineDash([4, 3]); ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      p.overlay.forEach((v, i) => {
+        const yv = py + (ph - 12) - v / mx * (ph - 12);
+        i === 0 ? ctx.moveTo(px + i * bw2 + bw2 / 2, yv) : ctx.lineTo(px + i * bw2 + bw2 / 2, yv);
+      });
+      ctx.stroke(); ctx.setLineDash([]);
+    }
+    ctx.fillStyle = cssVar('--muted'); ctx.font = '10px sans-serif';
+    ctx.fillText('저주파 →', px, py + ph + 2);
+    ctx.textAlign = 'right'; ctx.fillText('← 고주파', px + pw, py + ph + 2); ctx.textAlign = 'left';
+  });
+}
+$('#freqKer').addEventListener('change', drawFreq);
+
+/* ================= §7 2D image conv ================= */
+const K2D = {
+  identity: [0,0,0, 0,1,0, 0,0,0],
+  box:      [1,1,1, 1,1,1, 1,1,1],
+  gauss:    [1,2,1, 2,4,2, 1,2,1],
+  sharpen:  [0,-1,0, -1,5,-1, 0,-1,0],
+  sobelx:   [-1,0,1, -2,0,2, -1,0,1],
+  sobely:   [-1,-2,-1, 0,0,0, 1,2,1],
+  emboss:   [-2,-1,0, -1,1,1, 0,1,2],
+};
+const IMG_W = 96;
+let srcGray = null;  // Float array of gray values
+let curKernel = K2D.box.slice();
+
+function makeSourceImage() {
+  const c = $('#srcCanvas'), ctx = c.getContext('2d');
+  // procedural grayscale test image: gradient + shapes + texture
+  const grd = ctx.createLinearGradient(0, 0, IMG_W, IMG_W);
+  grd.addColorStop(0, '#666'); grd.addColorStop(1, '#b9b9b9');
+  ctx.fillStyle = grd; ctx.fillRect(0, 0, IMG_W, IMG_W);
+  ctx.fillStyle = '#e8e8e8'; ctx.beginPath(); ctx.arc(30, 32, 17, 0, 7); ctx.fill();
+  ctx.fillStyle = '#222'; ctx.fillRect(54, 14, 30, 24);
+  ctx.strokeStyle = '#111'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(8, 88); ctx.lineTo(88, 52); ctx.stroke();
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 5; i++) { ctx.beginPath(); ctx.moveTo(56 + i * 7, 60); ctx.lineTo(56 + i * 7, 90); ctx.stroke(); }
+  ctx.fillStyle = '#f2f2f2'; ctx.font = 'bold 26px Georgia'; ctx.fillText('K', 14, 78);
+  const d = ctx.getImageData(0, 0, IMG_W, IMG_W).data;
+  srcGray = new Float32Array(IMG_W * IMG_W);
+  for (let i = 0; i < IMG_W * IMG_W; i++)
+    srcGray[i] = 0.299 * d[i*4] + 0.587 * d[i*4+1] + 0.114 * d[i*4+2];
+  // re-render source as pure grayscale
+  const img = ctx.createImageData(IMG_W, IMG_W);
+  for (let i = 0; i < IMG_W * IMG_W; i++) {
+    const v = srcGray[i];
+    img.data[i*4] = img.data[i*4+1] = img.data[i*4+2] = v; img.data[i*4+3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
+function kernelMeta() {
+  const sum = curKernel.reduce((a, b) => a + b, 0);
+  const div = Math.abs(sum) > 1e-6 ? sum : 1;
+  const bias = Math.abs(sum) > 1e-6 ? 0 : 128;
+  return { div, bias, sum };
+}
+
+function convPixel(x, yv) {
+  const { div, bias } = kernelMeta();
+  let acc = 0;
+  for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) {
+    const yy = Math.min(IMG_W - 1, Math.max(0, yv + a));
+    const xx = Math.min(IMG_W - 1, Math.max(0, x + b));
+    acc += srcGray[yy * IMG_W + xx] * curKernel[(a + 1) * 3 + (b + 1)];
+  }
+  return acc / div + bias;
+}
+
+function apply2d() {
+  const ctx = $('#dstCanvas').getContext('2d');
+  const img = ctx.createImageData(IMG_W, IMG_W);
+  for (let yv = 0; yv < IMG_W; yv++) for (let x = 0; x < IMG_W; x++) {
+    const v = Math.min(255, Math.max(0, convPixel(x, yv)));
+    const i = yv * IMG_W + x;
+    img.data[i*4] = img.data[i*4+1] = img.data[i*4+2] = v; img.data[i*4+3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+  const { sum } = kernelMeta();
+  $('#kNote').textContent = Math.abs(sum) > 1e-6
+    ? `커널 합=${fmt(sum)} → 자동으로 ${fmt(sum)}로 나눠 밝기 유지`
+    : '커널 합=0 → +128 오프셋 (회색=0, 밝음=＋, 어두움=−)';
+}
+
+function buildKernelGrid() {
+  const grid = $('#kgrid');
+  grid.innerHTML = '';
+  curKernel.forEach((v, i) => {
+    const inp = document.createElement('input');
+    inp.type = 'text'; inp.value = v; inp.inputMode = 'numeric';
+    inp.addEventListener('change', () => {
+      const n = parseFloat(inp.value);
+      curKernel[i] = isNaN(n) ? 0 : n;
+      inp.value = curKernel[i];
+      $$('#kerPresets .seg').forEach(b => b.classList.remove('on'));
+      apply2d();
+    });
+    grid.appendChild(inp);
+  });
+}
+$$('#kerPresets .seg').forEach(b => b.addEventListener('click', () => {
+  $$('#kerPresets .seg').forEach(x => x.classList.remove('on'));
+  b.classList.add('on');
+  curKernel = K2D[b.dataset.k].slice();
+  buildKernelGrid(); apply2d();
+}));
+
+$('#dstCanvas').addEventListener('mousemove', e => {
+  const rect = e.currentTarget.getBoundingClientRect();
+  const x = Math.floor((e.clientX - rect.left) / rect.width * IMG_W);
+  const yv = Math.floor((e.clientY - rect.top) / rect.height * IMG_W);
+  if (x < 0 || yv < 0 || x >= IMG_W || yv >= IMG_W) return;
+  const { div, bias } = kernelMeta();
+  let cells = '', prods = '', acc = 0;
+  for (let a = -1; a <= 1; a++) {
+    cells += '<tr>'; prods += '<tr>';
+    for (let b = -1; b <= 1; b++) {
+      const yy = Math.min(IMG_W - 1, Math.max(0, yv + a));
+      const xx = Math.min(IMG_W - 1, Math.max(0, x + b));
+      const pv = Math.round(srcGray[yy * IMG_W + xx]);
+      const kv = curKernel[(a + 1) * 3 + (b + 1)];
+      cells += `<td>${pv}</td>`;
+      prods += `<td>${fmt(pv * kv, 0)}</td>`;
+      acc += pv * kv;
+    }
+    cells += '</tr>'; prods += '</tr>';
+  }
+  const out = Math.min(255, Math.max(0, acc / div + bias));
+  $('#inspect').innerHTML =
+    `<b>출력 픽셀 (${x}, ${yv})의 계산</b><br>` +
+    `입력 3×3 창: <table>${cells}</table>` +
+    `× 커널 → 곱: <table>${prods}</table>` +
+    `합 = ${fmt(acc, 0)}` +
+    (div !== 1 ? ` ÷ ${fmt(div)}` : '') + (bias ? ` + ${bias}` : '') +
+    ` = <span class="sum">${fmt(out, 1)}</span>`;
+});
+$('#dstCanvas').addEventListener('mouseleave', () => {
+  $('#inspect').innerHTML = '출력 이미지 위에 마우스를 올리면<br>그 픽셀의 계산 과정이 여기 표시됩니다.';
+});
+
+/* ================= §8 stride/padding ================= */
+let spTimer = null;
+function spParams() {
+  return { N: +$('#spN').value, K: +$('#spK').value, S: +$('#spS').value, P: +$('#spP').value };
+}
+function spOutSize({ N, K, S, P }) { return Math.floor((N + 2 * P - K) / S) + 1; }
+
+function buildSP(step = -1) {
+  const p = spParams();
+  ['N','K','S','P'].forEach(k => $('#sp' + k + 'v').textContent = p[k]);
+  const O = Math.max(0, spOutSize(p));
+  const T = p.N + 2 * p.P;
+  const inG = $('#spInGrid'), outG = $('#spOutGrid');
+  inG.style.gridTemplateColumns = `repeat(${T}, 26px)`;
+  outG.style.gridTemplateColumns = `repeat(${Math.max(O,1)}, 26px)`;
+  inG.innerHTML = ''; outG.innerHTML = '';
+  const oi = step >= 0 ? Math.floor(step / O) : -1, oj = step >= 0 ? step % O : -1;
+  for (let i = 0; i < T; i++) for (let j = 0; j < T; j++) {
+    const c = document.createElement('div');
+    const isPad = i < p.P || j < p.P || i >= p.P + p.N || j >= p.P + p.N;
+    c.className = 'sp-cell' + (isPad ? ' pad' : '');
+    if (oi >= 0 && i >= oi * p.S && i < oi * p.S + p.K && j >= oj * p.S && j < oj * p.S + p.K)
+      c.classList.add('win');
+    inG.appendChild(c);
+  }
+  for (let i = 0; i < O; i++) for (let j = 0; j < O; j++) {
+    const c = document.createElement('div');
+    const idx = i * O + j;
+    c.className = 'sp-cell out' + (step >= 0 && idx < step ? ' done' : '') + (idx === step ? ' cur' : '');
+    if (step >= 0 && idx <= step) c.textContent = '·';
+    outG.appendChild(c);
+  }
+  if (O === 0) outG.innerHTML = '<div style="color:var(--crit);font-size:.8rem">커널이 입력보다 큼</div>';
+  $('#spFormula').innerHTML =
+    `출력 크기 = ⌊(N + 2P − K) / S⌋ + 1 = ⌊(${p.N} + ${2 * p.P} − ${p.K}) / ${p.S}⌋ + 1 = <b>${O}</b>` +
+    `&nbsp;&nbsp;→&nbsp; ${p.N}×${p.N} 입력이 <b>${O}×${O}</b> 특징맵으로`;
+}
+['spN','spK','spS','spP'].forEach(id => $('#' + id).addEventListener('input', () => {
+  if (spTimer) { clearInterval(spTimer); spTimer = null; $('#spPlay').textContent = '▶ 훑기'; }
+  buildSP();
+}));
+$('#spPlay').addEventListener('click', () => {
+  if (spTimer) { clearInterval(spTimer); spTimer = null; $('#spPlay').textContent = '▶ 훑기'; return; }
+  const O = spOutSize(spParams());
+  if (O <= 0) return;
+  let step = 0;
+  $('#spPlay').textContent = '⏸ 정지';
+  buildSP(step);
+  spTimer = setInterval(() => {
+    step++;
+    if (step >= O * O) { clearInterval(spTimer); spTimer = null; $('#spPlay').textContent = '▶ 훑기'; buildSP(O * O - 1); return; }
+    buildSP(step);
+  }, 320);
+});
+
+/* ================= §9 quiz ================= */
+const QUIZ = [
+  {
+    q: "합성곱 정의 y[n] = Σ f[m]·g[n−m]에서 커널이 '뒤집히는' 이유로 가장 정확한 설명은?",
+    opts: [
+      "인덱스 합이 m + (n−m) = n으로 보존되는 짝끼리 곱하기 때문 (다항식 곱셈·확률 합과 같은 구조)",
+      "컴퓨터 메모리에 배열이 역순으로 저장되기 때문",
+      "뒤집지 않으면 계산 결과가 항상 0이 되기 때문",
+      "푸리에 변환을 쓰려면 반드시 뒤집어야 하기 때문",
+    ],
+    a: 0,
+    expl: "<b>핵심 구조:</b> xⁿ의 계수든 P(X+Y=n)이든, '합이 n이 되는 조합'을 모으려면 한쪽이 m일 때 다른 쪽은 n−m이어야 합니다. 한쪽 인덱스가 커지면 다른 쪽이 작아지는 것 — 그게 곧 뒤집기입니다.",
+  },
+  {
+    q: "커널 합이 1인 양수 커널(예: 가우시안)로 합성곱하면 신호는 어떻게 되나?",
+    opts: [
+      "각 점이 주변의 가중평균으로 바뀌어 부드러워진다 (저역통과)",
+      "변화가 큰 곳만 남고 평평한 곳은 0이 된다",
+      "신호가 전체적으로 커진다",
+      "신호가 좌우로 뒤집힌다",
+    ],
+    a: 0,
+    expl: "합이 1이면 출력은 이웃들의 <b>가중평균</b>입니다. 급격한 변화(고주파)가 눌려 스무딩이 됩니다. §6에서 봤듯 주파수 응답이 고주파에서 작기 때문이기도 합니다.",
+  },
+  {
+    q: "LTI 시스템에서 임펄스 응답 h만 알면 모든 입력의 출력을 알 수 있는 이유는?",
+    opts: [
+      "임의 입력을 임펄스들의 합으로 쪼개고, 선형성·시간불변성으로 각 응답을 겹쳐 더할 수 있어서 (그 합이 f ∗ h)",
+      "임펄스가 모든 신호 중에서 에너지가 가장 크기 때문",
+      "h가 시스템의 모든 비선형성을 담고 있기 때문",
+      "임펄스 응답이 항상 가우시안이기 때문",
+    ],
+    a: 0,
+    expl: "<b>중첩 원리</b>입니다. f[m]짜리 임펄스가 m 시점에 들어가면 m만큼 밀린 f[m]·h가 나오고(시간불변+선형), 전부 더하면 y[n] = Σ f[m]h[n−m] — 합성곱의 정의가 저절로 나옵니다.",
+  },
+  {
+    q: "합성곱 정리 ℱ(f∗g) = ℱ(f)·ℱ(g)가 실용적으로 말해 주는 것은?",
+    opts: [
+      "커널은 '각 주파수를 몇 배 통과시킬지'를 정하는 필터이고, 긴 합성곱은 FFT로 빠르게 계산할 수 있다",
+      "합성곱은 주파수 영역에서는 정의되지 않는다",
+      "모든 필터는 고주파를 제거한다",
+      "푸리에 변환은 합성곱을 두 번 반복한 것이다",
+    ],
+    a: 0,
+    expl: "시간 영역의 밀며-곱하기가 주파수 영역에선 주파수별 <b>단순 곱셈</b>입니다. |ℱ(g)|가 필터의 주파수 응답이고, O(n²) 합성곱을 O(n log n) FFT 곱셈으로 바꿀 수 있습니다.",
+  },
+  {
+    q: "CNN이 완전연결층 대신 합성곱을 쓰는 이유가 아닌 것은?",
+    opts: [
+      "합성곱이 완전연결층보다 항상 더 많은 파라미터를 제공하기 때문",
+      "같은 커널을 모든 위치에 재사용해 파라미터가 크게 준다",
+      "입력이 이동하면 특징맵도 같이 이동한다 (평행이동 등변성)",
+      "각 출력이 지역적인 창만 보므로 층을 쌓아 계층적 특징을 만든다",
+    ],
+    a: 0,
+    expl: "반대입니다 — 합성곱의 장점은 파라미터가 <b>훨씬 적다</b>는 것(공유 덕분). 나머지 셋(공유·등변성·지역성)이 §8에서 본 진짜 이유입니다.",
+  },
+  {
+    q: "PyTorch의 Conv2d가 수학적 정의와 다른 점은?",
+    opts: [
+      "커널을 뒤집지 않는다 (엄밀히는 교차상관) — 커널을 학습하므로 결과적으로 차이가 없다",
+      "곱셈 대신 덧셈만 사용한다",
+      "커널을 위아래로만 뒤집는다",
+      "주파수 영역에서만 계산한다",
+    ],
+    a: 0,
+    expl: "프레임워크의 'conv'는 뒤집기를 생략한 <b>교차상관</b>입니다. 어차피 커널이 학습되므로, 뒤집힌 커널을 학습하면 동일합니다. §2의 뒤집기 스위치로 확인한 그 차이입니다.",
+  },
+];
+function buildQuiz() {
+  const area = $('#quizArea');
+  QUIZ.forEach((item, qi) => {
+    const div = document.createElement('div');
+    div.className = 'quiz';
+    // rotate display order so the answer isn't always first
+    const order = item.opts.map((_, i) => (i + qi) % item.opts.length);
+    div.innerHTML = `<div class="q">Q${qi + 1}. ${item.q}</div>
+      <div class="opts">${order.map(oi => `<button data-oi="${oi}">${item.opts[oi]}</button>`).join('')}</div>
+      <div class="expl">${item.expl}</div>`;
+    div.querySelectorAll('.opts button').forEach(btn => btn.addEventListener('click', () => {
+      div.querySelectorAll('.opts button').forEach(b => {
+        b.disabled = true;
+        if (+b.dataset.oi === item.a) b.classList.add('correct');
+      });
+      if (+btn.dataset.oi !== item.a) btn.classList.add('wrong');
+      div.querySelector('.expl').classList.add('show');
+    }));
+    area.appendChild(div);
+  });
+}
+
+/* ================= init & redraw ================= */
+function redrawAll() {
+  drawConvMachine(); drawLTI(); drawDice(); drawFreq();
+}
+let resizeT = null;
+addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(redrawAll, 150); });
+
+makeSourceImage();
+buildKernelGrid();
+apply2d();
+buildQuiz();
+buildSP();
+convSetup();
+drawLTI();
+drawDice();
+drawFreq();
+</script>
+</body>
+</html>
