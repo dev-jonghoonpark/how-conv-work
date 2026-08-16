@@ -204,12 +204,16 @@ canvas.chart { width: 100%; height: auto; display: block; border-radius: 8px; }
 }
 
 /* 2D demo */
-.img2d { display: grid; grid-template-columns: auto auto auto 1fr; gap: 18px; align-items: start; }
-@media (max-width: 900px) {
-  .img2d { grid-template-columns: auto auto; }
+.img2d { display: grid; grid-template-columns: auto auto auto minmax(200px, 1fr); gap: 18px; align-items: start; }
+@media (max-width: 1080px) {
+  .img2d { grid-template-columns: auto auto auto; justify-content: center; }
   .img2d .inspect { grid-column: 1 / -1; }
 }
-.img2d canvas { image-rendering: pixelated; border: 1px solid var(--line); border-radius: 8px; width: 240px; max-width: 100%; height: auto; display: block; cursor: crosshair; }
+@media (max-width: 680px) {
+  .img2d { grid-template-columns: 1fr 1fr; }
+  .img2d .kcol { grid-column: 1 / -1; }
+}
+.img2d canvas { image-rendering: pixelated; border: 1px solid var(--line); border-radius: 8px; width: 220px; max-width: 100%; height: auto; display: block; cursor: crosshair; }
 .img2d .cap { font-size: .8rem; color: var(--muted); text-align: center; margin-top: 6px; }
 .img2d .kcol { align-self: center; text-align: center; }
 .img2d .kcol .op { font-size: 1.3rem; color: var(--muted); font-family: "STIX Two Math", Georgia, serif; margin-bottom: 4px; }
@@ -228,7 +232,7 @@ canvas.chart { width: 100%; height: auto; display: block; border-radius: 8px; }
 
 /* channel mixer */
 .mix-wrap { display: grid; grid-template-columns: auto auto auto 1fr; gap: 20px; align-items: center; }
-@media (max-width: 900px) { .mix-wrap { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 960px) { .mix-wrap { grid-template-columns: 1fr 1fr; } }
 .mix-wrap canvas { image-rendering: pixelated; border: 1px solid var(--line); border-radius: 8px; display: block; max-width: 100%; }
 .mix-wrap .cap { font-size: .8rem; color: var(--muted); text-align: center; margin-top: 6px; }
 .chstack { display: flex; flex-direction: column; gap: 8px; }
