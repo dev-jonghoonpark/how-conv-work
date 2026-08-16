@@ -226,6 +226,20 @@ canvas.chart { width: 100%; height: auto; display: block; border-radius: 8px; }
 .inspect td { border: 1px solid var(--line); padding: 3px 7px; text-align: right; min-width: 40px; }
 .inspect .sum { font-weight: 700; color: var(--accent-ink); }
 
+/* channel mixer */
+.mix-wrap { display: grid; grid-template-columns: auto auto auto 1fr; gap: 20px; align-items: center; }
+@media (max-width: 900px) { .mix-wrap { grid-template-columns: 1fr 1fr; } }
+.mix-wrap canvas { image-rendering: pixelated; border: 1px solid var(--line); border-radius: 8px; display: block; max-width: 100%; }
+.mix-wrap .cap { font-size: .8rem; color: var(--muted); text-align: center; margin-top: 6px; }
+.chstack { display: flex; flex-direction: column; gap: 8px; }
+.chstack .chrow { display: flex; align-items: center; gap: 10px; }
+.chstack .chlab { font-family: ui-monospace, monospace; font-size: .8rem; width: 5.2em; }
+.wcol { min-width: 230px; }
+.wcol .wrow { display: flex; align-items: center; gap: 8px; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: .85rem; margin: 10px 0; }
+.wcol .wrow input[type=range] { flex: 1; }
+.wcol .wrow b { width: 3.2em; text-align: right; }
+.wcol .op { text-align: center; font-size: 1.2rem; color: var(--muted); font-family: "STIX Two Math", Georgia, serif; }
+
 /* stride/padding grid */
 .sp-wrap { display: flex; gap: 28px; flex-wrap: wrap; align-items: flex-start; }
 .sp-grid { display: grid; gap: 3px; }
@@ -272,6 +286,7 @@ footer { border-top: 1px solid var(--line); margin-top: 64px; padding: 28px 0 48
       <a href="#prob">확률</a>
       <a href="#freq">주파수</a>
       <a href="#img">2D 이미지</a>
+      <a href="#chan">채널</a>
       <a href="#cnn">CNN</a>
       <a href="#quiz">퀴즈</a>
     </nav>
@@ -618,11 +633,127 @@ footer { border-top: 1px solid var(--line); margin-top: 64px; padding: 28px 0 48
   </div>
 </section>
 
-<!-- ============ 8. CNN ============ -->
-<section id="cnn">
+<!-- ============ 8. 채널 ============ -->
+<section id="chan">
   <div class="wrap">
     <div class="eyebrow">Section 8</div>
-    <h2><span class="secnum">§8</span>CNN — 커널을 손으로 만들지 않고 학습시킨다</h2>
+    <h2><span class="secnum">§8</span>채널 — conv가 채널 수를 마음대로 바꿔 주는 이유</h2>
+    <div class="prose">
+      <p>
+        여기까지는 채널이 1개(흑백)인 척했습니다. 하지만 실제 입력은 채널이 여러 장입니다 —
+        RGB 이미지는 3장, ResNet 중간층의 특징맵은 64장, 256장씩 쌓여 있습니다.
+        "1×1 conv로 채널을 256 → 64로 줄인다"가 이해되지 않는다면, 십중팔구 아래 사실을 빠뜨렸기 때문입니다.
+      </p>
+    </div>
+    <div class="callout">
+      <b>오해 바로잡기:</b> "3×3 커널"은 사실 3×3짜리 종이 한 장이 아니라
+      <b>3×3×C<sub>in</sub>짜리 벽돌</b>입니다. 커널은 입력의 <em>모든 채널을 한꺼번에</em> 뚫고 들어가
+      공간 방향으로도, <b>채널 방향으로도</b> 곱해서 전부 더합니다.
+      그래서 커널 하나가 만드는 출력은 입력 채널 수와 무관하게 <b>항상 딱 1장</b>입니다.
+    </div>
+    <div class="formula" style="font-size:1rem">
+      y<sub><span class="hl-y">c′</span></sub>[i, j] = Σ<sub><span class="hl-f">c</span>=1</sub><sup>C<sub>in</sub></sup> Σ<sub>a</sub> Σ<sub>b</sub> <span class="hl-f">x<sub>c</sub></span>[i−a, j−b] · <span class="hl-g">k<sub><span class="hl-y">c′</span>,c</sub></span>[a, b]
+      <span class="note">채널 c에 대한 합(Σc)이 추가됐을 뿐 — 출력 채널 c′ 하나는 "입력 전 채널의 가중합" 1장</span>
+    </div>
+    <div class="prose">
+      <p>
+        그럼 출력 채널 수는 어디서 오는가? <b>이런 벽돌(필터)을 몇 개 꽂느냐</b>에서 옵니다.
+        필터를 64개 두면 출력이 64장, 256개 두면 256장. 즉 출력 채널 수 C<sub>out</sub>은
+        입력에서 계산되는 값이 아니라 <b>설계자가 고르는 필터 개수</b>입니다.
+        "conv가 채널 수를 바꿔 준다"는 말의 실체는 "필터 개수를 원하는 만큼 두면 그게 곧 새 채널 수"라는 뜻입니다.
+      </p>
+    </div>
+
+    <div class="demo">
+      <div class="demo-title">필터 개수 = 출력 채널 수 — 눈으로 보는 형태 변환</div>
+      <div class="demo-desc">C<sub>in</sub>, C<sub>out</sub>, K를 바꿔 보세요. 필터 하나(주황 벽돌)는 항상 입력 전 채널을 관통하고, 출력 1장을 만듭니다.</div>
+      <div class="controls">
+        <label>입력 채널 C<sub>in</sub> <input type="range" id="cdIn" min="1" max="6" value="3"> <b id="cdInV" class="mono">3</b></label>
+        <label>필터 개수 C<sub>out</sub> <input type="range" id="cdOut" min="1" max="6" value="4"> <b id="cdOutV" class="mono">4</b></label>
+        <label>커널 크기 K
+          <span class="grp">
+            <button class="seg" data-cdk="1">1×1</button>
+            <button class="seg on" data-cdk="3">3×3</button>
+          </span>
+        </label>
+      </div>
+      <canvas id="chanDiag" class="chart"></canvas>
+      <div class="sp-formula" id="chanFormula"></div>
+    </div>
+
+    <h3>1×1 conv — 공간은 안 보고 채널만 섞는 "픽셀별 완전연결층"</h3>
+    <div class="prose">
+      <p>
+        K = 1로 줄이면 커널은 1×1×C<sub>in</sub>, 즉 <b>이웃 픽셀은 전혀 안 보고</b>
+        같은 위치의 채널 벡터(길이 C<sub>in</sub>)에 가중치를 곱해 더하기만 합니다.
+        필터 C<sub>out</sub>개를 모으면 각 픽셀 위치마다 <b>C<sub>out</sub>×C<sub>in</sub> 행렬 곱</b> 하나 —
+        모든 픽셀에 똑같이 적용되는 작은 완전연결층입니다. 그래서 1×1 conv는 순수한 <b>채널 수 변환기</b>가 됩니다.
+      </p>
+      <p>
+        아래에서 실제로 해 보세요. RGB 이미지(C<sub>in</sub> = 3)에 <b>1×1 필터 1개</b>(가중치 딱 3개)를 적용해
+        출력 채널 1장을 만드는 데모입니다. 슬라이더가 곧 필터의 학습 파라미터입니다 —
+        가중치를 어떻게 두느냐에 따라 "밝기 채널", "빨강−초록 대비 채널" 같은 <em>새로운 채널</em>이 합성됩니다.
+      </p>
+    </div>
+
+    <div class="demo">
+      <div class="demo-title">1×1 conv 채널 믹서 — 3채널을 1채널로</div>
+      <div class="demo-desc">출력 위에 마우스를 올리면 그 픽셀의 채널 벡터 · 가중치 계산이 표시됩니다.</div>
+      <div class="controls">
+        <div class="grp">
+          <button class="seg on" data-mix="avg">평균 [⅓ ⅓ ⅓]</button>
+          <button class="seg" data-mix="lum">밝기 [.30 .59 .11]</button>
+          <button class="seg" data-mix="rg">R−G 대비 [1 −1 0]</button>
+          <button class="seg" data-mix="gonly">G만 [0 1 0]</button>
+        </div>
+      </div>
+      <div class="mix-wrap">
+        <div>
+          <canvas id="mixSrc" width="96" height="96" style="width:150px"></canvas>
+          <div class="cap">입력 x — RGB, C<sub>in</sub>=3</div>
+        </div>
+        <div class="chstack">
+          <div class="chrow"><canvas id="chR" width="96" height="96" style="width:72px"></canvas><span class="chlab" style="color:#d95555">x<sub>R</sub></span></div>
+          <div class="chrow"><canvas id="chG" width="96" height="96" style="width:72px"></canvas><span class="chlab" style="color:#3fa34d">x<sub>G</sub></span></div>
+          <div class="chrow"><canvas id="chB" width="96" height="96" style="width:72px"></canvas><span class="chlab" style="color:#4a7fd6">x<sub>B</sub></span></div>
+        </div>
+        <div class="wcol">
+          <div class="op">× 1×1 필터 w (파라미터 3개)</div>
+          <div class="wrow"><span style="color:#d95555">w<sub>R</sub></span><input type="range" id="wR" min="-1" max="1" step="0.01" value="0.33"><b id="wRv">0.33</b></div>
+          <div class="wrow"><span style="color:#3fa34d">w<sub>G</sub></span><input type="range" id="wG" min="-1" max="1" step="0.01" value="0.33"><b id="wGv">0.33</b></div>
+          <div class="wrow"><span style="color:#4a7fd6">w<sub>B</sub></span><input type="range" id="wB" min="-1" max="1" step="0.01" value="0.33"><b id="wBv">0.33</b></div>
+          <div class="op">= 새 채널 1장 →</div>
+        </div>
+        <div>
+          <canvas id="mixOut" width="96" height="96" style="width:216px"></canvas>
+          <div class="cap">출력 y = w<sub>R</sub>x<sub>R</sub> + w<sub>G</sub>x<sub>G</sub> + w<sub>B</sub>x<sub>B</sub></div>
+          <div class="readout" id="mixReadout" style="white-space:normal">출력 위에 마우스를 올려 보세요</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="prose">
+      <p>
+        이게 전부입니다. ResNet bottleneck의 <code>1×1 conv, 64필터</code>는 위 데모의 필터를
+        64개로 늘리고 C<sub>in</sub>을 256으로 늘린 것뿐입니다:
+        각 픽셀에서 길이 256짜리 채널 벡터에 64×256 행렬을 곱해 길이 64짜리 벡터를 만듭니다.
+        채널을 "버려서" 줄이는 게 아니라, <b>256개 전부의 가중합으로 새 채널 64개를 합성</b>하는 것 —
+        그래서 정보를 압축하면서 줄일 수 있고, 반대로 필터를 256개 두면 다시 늘릴 수도 있습니다.
+        비싼 3×3 conv를 좁은 채널(64)에서만 돌리고 1×1로 줄였다 늘리는 것이 bottleneck 구조이고,
+        지름길(shortcut)의 차원을 맞출 때 쓰는 projection도 같은 1×1 conv입니다.
+      </p>
+      <p>
+        → 이 구조만 따로 다룬 자료: <a href="https://dev-jonghoonpark.github.io/resnet-bottleneck/">ResNet Bottleneck에서 1×1 conv의 역할</a>
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 9. CNN ============ -->
+<section id="cnn">
+  <div class="wrap">
+    <div class="eyebrow">Section 9</div>
+    <h2><span class="secnum">§9</span>CNN — 커널을 손으로 만들지 않고 학습시킨다</h2>
     <div class="prose">
       <p>
         §7에서 우리는 Sobel 같은 커널을 <em>사람이 설계</em>했습니다. CNN의 아이디어는 단순합니다:
@@ -682,11 +813,11 @@ y = F.conv2d(x, sobel_x, padding=1)   # 이름은 conv지만 실은 교차상관
   </div>
 </section>
 
-<!-- ============ 9. 퀴즈 ============ -->
+<!-- ============ 10. 퀴즈 ============ -->
 <section id="quiz">
   <div class="wrap">
-    <div class="eyebrow">Section 9</div>
-    <h2><span class="secnum">§9</span>이해했는지 확인하기</h2>
+    <div class="eyebrow">Section 10</div>
+    <h2><span class="secnum">§10</span>이해했는지 확인하기</h2>
     <div id="quizArea"></div>
   </div>
 </section>
@@ -1262,7 +1393,181 @@ $('#spPlay').addEventListener('click', () => {
   }, 320);
 });
 
-/* ================= §9 quiz ================= */
+/* ================= §8 channel diagram ================= */
+let cdK = 3;
+function roundRectPath(ctx, x, y, w2, h2, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w2, y, x + w2, y + h2, r);
+  ctx.arcTo(x + w2, y + h2, x, y + h2, r);
+  ctx.arcTo(x, y + h2, x, y, r);
+  ctx.arcTo(x, y, x + w2, y, r);
+  ctx.closePath();
+}
+function drawPlateStack(ctx, x, y, size, count, off, fill, stroke, label) {
+  for (let i = count - 1; i >= 0; i--) {
+    roundRectPath(ctx, x + i * off, y + i * off, size, size, 5);
+    ctx.fillStyle = fill; ctx.fill();
+    ctx.strokeStyle = stroke; ctx.lineWidth = 1.2; ctx.stroke();
+  }
+  if (label) {
+    ctx.fillStyle = cssVar('--ink2'); ctx.font = '11px ui-monospace, monospace'; ctx.textAlign = 'center';
+    ctx.fillText(label, x + size / 2 + (count - 1) * off / 2, y + size + (count - 1) * off + 16);
+    ctx.textAlign = 'left';
+  }
+  return { w: size + (count - 1) * off, h: size + (count - 1) * off };
+}
+function drawChanDiagram() {
+  const Cin = +$('#cdIn').value, Cout = +$('#cdOut').value;
+  $('#cdInV').textContent = Cin; $('#cdOutV').textContent = Cout;
+  const canvas = $('#chanDiag');
+  const fSize = 24, fOff = 4, fGap = 14;
+  const fStackH = fSize + (Cin - 1) * fOff;
+  const filtersH = Cout * fStackH + (Cout - 1) * fGap;
+  const H = Math.max(210, filtersH + 70);
+  const { ctx, w, h } = setupCanvas(canvas, H);
+  ctx.clearRect(0, 0, w, h);
+  const narrow = w < 640;
+  const inSize = narrow ? 62 : 84, inOff = 8;
+  const outSize = narrow ? 46 : 62, outOff = 8;
+
+  // input stack (left)
+  const inX = 14, inW = inSize + (Cin - 1) * inOff;
+  const inY = Math.max(28, (h - 40 - inW) / 2);
+  drawPlateStack(ctx, inX, inY, inSize, Cin, inOff,
+    cssVar('--s1') + '33', cssVar('--s1'), `입력 C_in = ${Cin}장`);
+
+  // filters (middle)
+  const fX = inX + inW + (narrow ? 46 : 90);
+  const fY0 = Math.max(28, (h - 40 - filtersH) / 2);
+  for (let i = 0; i < Cout; i++) {
+    const fy = fY0 + i * (fStackH + fGap);
+    drawPlateStack(ctx, fX, fy, fSize, Cin, fOff, cssVar('--s2') + '44', cssVar('--s2'), null);
+    ctx.fillStyle = cssVar('--ink2'); ctx.font = '10px ui-monospace, monospace';
+    ctx.fillText(`${cdK}×${cdK}×${Cin}`, fX + fSize + (Cin - 1) * fOff + 8, fy + fStackH / 2 + 3);
+  }
+  ctx.fillStyle = cssVar('--s2'); ctx.font = 'bold 11px ui-monospace, monospace'; ctx.textAlign = 'center';
+  const fW = fSize + (Cin - 1) * fOff;
+  ctx.fillText(`필터 ${Cout}개`, fX + fW / 2 + 14, fY0 + filtersH + 18);
+  ctx.textAlign = 'left';
+
+  // output stacks (right): one plate per filter
+  const oX = fX + fW + (narrow ? 84 : 150);
+  const outW = outSize + (Cout - 1) * outOff;
+  const oY = Math.max(28, (h - 40 - outW) / 2);
+  drawPlateStack(ctx, oX, oY, outSize, Cout, outOff,
+    cssVar('--accent') + '33', cssVar('--accent'), `출력 C_out = ${Cout}장`);
+
+  // arrows: input → each filter, each filter → its output plate
+  ctx.strokeStyle = cssVar('--muted'); ctx.lineWidth = 1;
+  for (let i = 0; i < Cout; i++) {
+    const fy = fY0 + i * (fStackH + fGap) + fStackH / 2;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(inX + inW + 6, inY + inW / 2);
+    ctx.lineTo(fX - 8, fy);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    const tx = oX + i * outOff + outSize / 2, ty = oY + i * outOff + (i === 0 ? 0 : 4);
+    ctx.moveTo(fX + fW + 44, fy);
+    ctx.lineTo(tx - outSize / 2 - 6, ty + 8);
+    ctx.stroke();
+  }
+  ctx.fillStyle = cssVar('--muted'); ctx.font = '10.5px sans-serif';
+  ctx.fillText('모든 채널을 관통 →', inX + inW + 8, 16);
+  ctx.fillText('→ 필터 1개당 출력 1장', fX + fW + 40, 16);
+
+  $('#chanFormula').innerHTML =
+    `파라미터 수 = K·K·C<sub>in</sub>·C<sub>out</sub> = ${cdK}×${cdK}×${Cin}×${Cout} = <b>${cdK * cdK * Cin * Cout}개</b>` +
+    (cdK === 1 ? ` &nbsp;→&nbsp; 각 픽셀에서 <b>${Cout}×${Cin} 행렬 곱</b> (공간은 안 봄 = 채널 변환기)` :
+      ` &nbsp;·&nbsp; C<sub>out</sub>은 계산 결과가 아니라 <b>설계자가 정한 필터 개수</b>`);
+}
+['cdIn', 'cdOut'].forEach(id => $('#' + id).addEventListener('input', drawChanDiagram));
+$$('button[data-cdk]').forEach(b => b.addEventListener('click', () => {
+  $$('button[data-cdk]').forEach(x => x.classList.remove('on'));
+  b.classList.add('on');
+  cdK = +b.dataset.cdk;
+  drawChanDiagram();
+}));
+
+/* ================= §8 1x1 channel mixer ================= */
+let chanR = null, chanG = null, chanB = null;
+let mixW = { r: 0.33, g: 0.33, b: 0.33 };
+function makeColorImage() {
+  const c = $('#mixSrc'), ctx = c.getContext('2d');
+  const grd = ctx.createLinearGradient(0, 0, IMG_W, IMG_W);
+  grd.addColorStop(0, '#2f4858'); grd.addColorStop(1, '#7ea8b8');
+  ctx.fillStyle = grd; ctx.fillRect(0, 0, IMG_W, IMG_W);
+  ctx.fillStyle = '#d94f3d'; ctx.beginPath(); ctx.arc(30, 32, 17, 0, 7); ctx.fill();   // red circle
+  ctx.fillStyle = '#3fa34d'; ctx.fillRect(54, 14, 30, 24);                              // green rect
+  ctx.strokeStyle = '#f2c14e'; ctx.lineWidth = 3;                                       // yellow line
+  ctx.beginPath(); ctx.moveTo(8, 88); ctx.lineTo(88, 52); ctx.stroke();
+  ctx.strokeStyle = '#c05299'; ctx.lineWidth = 2;                                       // magenta stripes
+  for (let i = 0; i < 5; i++) { ctx.beginPath(); ctx.moveTo(56 + i * 7, 60); ctx.lineTo(56 + i * 7, 90); ctx.stroke(); }
+  ctx.fillStyle = '#f5f5f5'; ctx.font = 'bold 26px Georgia'; ctx.fillText('K', 14, 78);
+  const d = ctx.getImageData(0, 0, IMG_W, IMG_W).data;
+  chanR = new Float32Array(IMG_W * IMG_W);
+  chanG = new Float32Array(IMG_W * IMG_W);
+  chanB = new Float32Array(IMG_W * IMG_W);
+  for (let i = 0; i < IMG_W * IMG_W; i++) { chanR[i] = d[i*4]; chanG[i] = d[i*4+1]; chanB[i] = d[i*4+2]; }
+  // render each channel tinted in its own color
+  [['#chR', chanR, 0], ['#chG', chanG, 1], ['#chB', chanB, 2]].forEach(([sel, arr, comp]) => {
+    const cc = $(sel).getContext('2d');
+    const img = cc.createImageData(IMG_W, IMG_W);
+    for (let i = 0; i < IMG_W * IMG_W; i++) {
+      img.data[i*4 + comp] = arr[i];
+      img.data[i*4 + 3] = 255;
+    }
+    cc.putImageData(img, 0, 0);
+  });
+}
+function mixBias() { return Math.abs(mixW.r + mixW.g + mixW.b) < 0.05 ? 128 : 0; }
+function drawMix() {
+  $('#wRv').textContent = fmt(mixW.r); $('#wGv').textContent = fmt(mixW.g); $('#wBv').textContent = fmt(mixW.b);
+  const ctx = $('#mixOut').getContext('2d');
+  const img = ctx.createImageData(IMG_W, IMG_W);
+  const bias = mixBias();
+  for (let i = 0; i < IMG_W * IMG_W; i++) {
+    const v = Math.min(255, Math.max(0, mixW.r * chanR[i] + mixW.g * chanG[i] + mixW.b * chanB[i] + bias));
+    img.data[i*4] = img.data[i*4+1] = img.data[i*4+2] = v; img.data[i*4+3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+}
+const MIX_PRESETS = { avg: [1/3, 1/3, 1/3], lum: [0.3, 0.59, 0.11], rg: [1, -1, 0], gonly: [0, 1, 0] };
+[['#wR','r'], ['#wG','g'], ['#wB','b']].forEach(([sel, k]) => $(sel).addEventListener('input', e => {
+  mixW[k] = +e.target.value;
+  $$('button[data-mix]').forEach(b => b.classList.remove('on'));
+  drawMix();
+}));
+$$('button[data-mix]').forEach(b => b.addEventListener('click', () => {
+  $$('button[data-mix]').forEach(x => x.classList.remove('on'));
+  b.classList.add('on');
+  const [r, g, bl] = MIX_PRESETS[b.dataset.mix];
+  mixW = { r, g, b: bl };
+  $('#wR').value = r; $('#wG').value = g; $('#wB').value = bl;
+  drawMix();
+}));
+$('#mixOut').addEventListener('mousemove', e => {
+  const rect = e.currentTarget.getBoundingClientRect();
+  const x = Math.floor((e.clientX - rect.left) / rect.width * IMG_W);
+  const yv = Math.floor((e.clientY - rect.top) / rect.height * IMG_W);
+  if (x < 0 || yv < 0 || x >= IMG_W || yv >= IMG_W) return;
+  const i = yv * IMG_W + x;
+  const bias = mixBias();
+  const v = Math.min(255, Math.max(0, mixW.r * chanR[i] + mixW.g * chanG[i] + mixW.b * chanB[i] + bias));
+  $('#mixReadout').innerHTML =
+    `픽셀 (${x}, ${yv}): &nbsp;` +
+    `<span style="color:#d95555">${fmt(mixW.r)}×${Math.round(chanR[i])}</span> + ` +
+    `<span style="color:#3fa34d">${fmt(mixW.g)}×${Math.round(chanG[i])}</span> + ` +
+    `<span style="color:#4a7fd6">${fmt(mixW.b)}×${Math.round(chanB[i])}</span>` +
+    (bias ? ` + ${bias}` : '') + ` = <b>${fmt(v, 1)}</b>`;
+});
+$('#mixOut').addEventListener('mouseleave', () => {
+  $('#mixReadout').textContent = '출력 위에 마우스를 올려 보세요';
+});
+
+/* ================= §10 quiz ================= */
 const QUIZ = [
   {
     q: "합성곱 정의 y[n] = Σ f[m]·g[n−m]에서 커널이 '뒤집히는' 이유로 가장 정확한 설명은?",
@@ -1317,7 +1622,18 @@ const QUIZ = [
       "각 출력이 지역적인 창만 보므로 층을 쌓아 계층적 특징을 만든다",
     ],
     a: 0,
-    expl: "반대입니다 — 합성곱의 장점은 파라미터가 <b>훨씬 적다</b>는 것(공유 덕분). 나머지 셋(공유·등변성·지역성)이 §8에서 본 진짜 이유입니다.",
+    expl: "반대입니다 — 합성곱의 장점은 파라미터가 <b>훨씬 적다</b>는 것(공유 덕분). 나머지 셋(공유·등변성·지역성)이 §9에서 본 진짜 이유입니다.",
+  },
+  {
+    q: "ResNet bottleneck의 1×1 conv가 채널 수를 256 → 64로 바꿀 수 있는 이유는?",
+    opts: [
+      "필터 하나가 1×1×256으로 모든 입력 채널의 가중합 1장을 만들고, 그런 필터를 64개 두기 때문 (각 픽셀에서 64×256 행렬 곱)",
+      "중요도가 낮은 채널 192개를 골라서 버리기 때문",
+      "이미지를 64×64 크기로 리사이즈하기 때문",
+      "1×1 conv는 파라미터가 없는 연산이라 채널을 자유롭게 재배열할 수 있기 때문",
+    ],
+    a: 0,
+    expl: "1×1 conv는 <b>픽셀별 완전연결층</b>입니다(§8). 채널을 버리는 게 아니라 256개 전부의 가중합으로 새 채널 64개를 <b>합성</b>합니다. 출력 채널 수 = 필터 개수라는 설계 선택일 뿐입니다.",
   },
   {
     q: "PyTorch의 Conv2d가 수학적 정의와 다른 점은?",
@@ -1355,7 +1671,7 @@ function buildQuiz() {
 
 /* ================= init & redraw ================= */
 function redrawAll() {
-  drawConvMachine(); drawLTI(); drawDice(); drawFreq();
+  drawConvMachine(); drawLTI(); drawDice(); drawFreq(); drawChanDiagram();
 }
 let resizeT = null;
 addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(redrawAll, 150); });
@@ -1363,6 +1679,9 @@ addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(r
 makeSourceImage();
 buildKernelGrid();
 apply2d();
+makeColorImage();
+drawMix();
+drawChanDiagram();
 buildQuiz();
 buildSP();
 convSetup();
